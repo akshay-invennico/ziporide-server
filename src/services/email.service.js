@@ -1,6 +1,6 @@
+const sgMail = require('@sendgrid/mail');
 const config = require('../config/config');
 const logger = require('../config/logger');
-const sgMail = require('@sendgrid/mail');
 
 sgMail.setApiKey(config.email.sendgrid.apiKey);
 

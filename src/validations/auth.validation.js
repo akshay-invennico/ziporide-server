@@ -1,24 +1,31 @@
 const Joi = require('joi');
-const { password } = require('./custom.validation');
 
-const register = {
+const sendOtp = {
   body: Joi.object().keys({
-    email: Joi.string().required().email(),
-    password: Joi.string().required().custom(password),
-    name: Joi.string().required(),
+    phone: Joi.string().required().trim(),
+    countryCode: Joi.string().required().trim().default('+91'),
   }),
 };
 
-const login = {
+const verifyOtp = {
   body: Joi.object().keys({
-    email: Joi.string().required(),
-    password: Joi.string().required(),
+    phone: Joi.string().required().trim(),
+    countryCode: Joi.string().required().trim().default('+91'),
+    otp: Joi.string().length(6).pattern(/^\d+$/).required().messages({
+      'string.length': 'OTP must be exactly 6 digits',
+      'string.pattern.base': 'OTP must contain only digits',
+    }),
   }),
 };
 
-const logout = {
+const completeProfile = {
   body: Joi.object().keys({
-    refreshToken: Joi.string().required(),
+    name: Joi.string().trim().required(),
+    email: Joi.string().email().trim().lowercase().optional(),
+    gender: Joi.string().valid('male', 'female', 'other').optional(),
+    isAdultConfirmed: Joi.boolean().valid(true).required().messages({
+      'any.only': 'You must confirm that you are 18 or above to use Zipo',
+    }),
   }),
 };
 
@@ -28,26 +35,16 @@ const refreshTokens = {
   }),
 };
 
-const forgotPassword = {
+const logout = {
   body: Joi.object().keys({
-    email: Joi.string().email().required(),
-  }),
-};
-
-const resetPassword = {
-  query: Joi.object().keys({
-    token: Joi.string().required(),
-  }),
-  body: Joi.object().keys({
-    password: Joi.string().required().custom(password),
+    refreshToken: Joi.string().required(),
   }),
 };
 
 module.exports = {
-  register,
-  login,
-  logout,
+  sendOtp,
+  verifyOtp,
+  completeProfile,
   refreshTokens,
-  forgotPassword,
-  resetPassword,
+  logout,
 };

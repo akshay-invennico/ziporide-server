@@ -19,6 +19,9 @@ const envVarsSchema = Joi.object()
     EMAIL_FROM: Joi.string().description('the from field in the emails sent by the app'),
     SENDGRID_API_KEY: Joi.string().description('SendGrid API key'),
     SENDER_MAIL: Joi.string().description('SendGrid sender email'),
+    TWILIO_ACCOUNT_SID: Joi.string().description('Twilio account SID'),
+    TWILIO_AUTH_TOKEN: Joi.string().description('Twilio auth token'),
+    TWILIO_PHONE_NUMBER: Joi.string().description('Twilio phone number'),
   })
   .unknown();
 
@@ -59,5 +62,10 @@ module.exports = {
       apiKey: envVars.SENDGRID_API_KEY,
       senderMail: envVars.SENDER_MAIL,
     },
+  },
+  twilio: {
+    accountSid: envVars.TWILIO_ACCOUNT_SID,
+    authToken: envVars.TWILIO_AUTH_TOKEN,
+    phoneNumber: envVars.TWILIO_PHONE_NUMBER,
   },
 };

@@ -1,23 +1,30 @@
 const httpStatus = require('http-status');
 const catchAsync = require('../utils/catchAsync');
-const { authService, userService, tokenService, emailService } = require('../services');
+const { authService, tokenService } = require('../services');
 
-const register = catchAsync(async (req, res) => {
-  const user = await userService.createUser(req.body);
-  const tokens = await tokenService.generateAuthTokens(user);
-  res.status(httpStatus.CREATED).send({ user, tokens });
+const sendOtp = catchAsync(async (req, res) => {
+  const { phone, countryCode } = req.body;
+  const { isNewUser } = await authService.sendOtp(phone, countryCode);
+  res.status(httpStatus.OK).send({
+    message: 'OTP sent successfully',
+    isNewUser,
+  });
 });
 
-const login = catchAsync(async (req, res) => {
-  const { email, password } = req.body;
-  const user = await authService.loginUserWithEmailAndPassword(email, password);
+const verifyOtp = catchAsync(async (req, res) => {
+  const { phone, countryCode, otp } = req.body;
+  const user = await authService.verifyOtp(phone, countryCode, otp);
   const tokens = await tokenService.generateAuthTokens(user);
-  res.send({ user, tokens });
+  res.status(httpStatus.OK).send({
+    user,
+    tokens,
+    isProfileCompleted: user.isProfileCompleted,
+  });
 });
 
-const logout = catchAsync(async (req, res) => {
-  await authService.logout(req.body.refreshToken);
-  res.status(httpStatus.NO_CONTENT).send();
+const completeProfile = catchAsync(async (req, res) => {
+  const user = await authService.completeProfile(req.user.id, req.body);
+  res.status(httpStatus.OK).send({ user });
 });
 
 const refreshTokens = catchAsync(async (req, res) => {
@@ -25,22 +32,15 @@ const refreshTokens = catchAsync(async (req, res) => {
   res.send({ ...tokens });
 });
 
-const forgotPassword = catchAsync(async (req, res) => {
-  const resetPasswordToken = await tokenService.generateResetPasswordToken(req.body.email);
-  await emailService.sendResetPasswordEmail(req.body.email, resetPasswordToken);
-  res.status(httpStatus.NO_CONTENT).send();
-});
-
-const resetPassword = catchAsync(async (req, res) => {
-  await authService.resetPassword(req.query.token, req.body.password);
+const logout = catchAsync(async (req, res) => {
+  await authService.logout(req.body.refreshToken);
   res.status(httpStatus.NO_CONTENT).send();
 });
 
 module.exports = {
-  register,
-  login,
-  logout,
+  sendOtp,
+  verifyOtp,
+  completeProfile,
   refreshTokens,
-  forgotPassword,
-  resetPassword,
+  logout,
 };

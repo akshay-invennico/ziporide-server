@@ -69,6 +69,7 @@
     "pm2": "^4.1.2",
     "swagger-jsdoc": "4.2.0",
     "swagger-ui-express": "4.1.4",
+    "twilio": "^5.13.0",
     "validator": "^13.0.0",
     "winston": "^3.2.1",
     "xss-clean": "^0.1.1"
