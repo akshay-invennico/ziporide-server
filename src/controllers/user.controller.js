@@ -8,17 +8,29 @@ const getUser = catchAsync(async (req, res) => {
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
-  res.send(user);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'User retrieved successfully',
+    data: { user },
+  });
 });
 
 const updateUser = catchAsync(async (req, res) => {
   const user = await userService.updateUserById(req.params.userId, req.body);
-  res.send(user);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'User updated successfully',
+    data: { user },
+  });
 });
 
 const deleteUser = catchAsync(async (req, res) => {
   await userService.deleteUserById(req.params.userId);
-  res.status(httpStatus.NO_CONTENT).send();
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'User deleted successfully',
+    data: {},
+  });
 });
 
 module.exports = {
