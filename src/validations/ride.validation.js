@@ -5,8 +5,7 @@ const locationSchema = Joi.object({
   coordinates: Joi.array().items(Joi.number()).length(2).required().messages({
     'array.length': 'coordinates must be [longitude, latitude]',
   }),
-  address: Joi.string().trim().required(),
-  placeId: Joi.string().allow('', null).optional(),
+  address: Joi.string().trim().optional().allow('', null),
 });
 
 const createRide = {

@@ -12,8 +12,7 @@ const locationPointSchema = new mongoose.Schema(
       type: [Number],
       required: true,
     },
-    address: { type: String, trim: true },
-    placeId: { type: String },
+    address: { type: String, trim: true, optional: true, allow: ['', null] },
   },
   { _id: false }
 );

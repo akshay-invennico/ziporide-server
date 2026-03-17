@@ -130,6 +130,31 @@ const driverSchema = new mongoose.Schema(
     lastLoginAt: {
       type: Date,
     },
+
+    // ── Stripe / Subscription ─────────────────────────────────────────────
+    /** Stripe Customer ID – created the first time the driver starts a subscription */
+    stripeCustomerId: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
+
+    /** True when the driver has a currently active subscription */
+    isSubscribed: {
+      type: Boolean,
+      default: false,
+    },
+
+    /**
+     * Mirrors the Stripe subscription status for quick reads without
+     * hitting the DriverSubscription collection.
+     * Values: 'none' | 'active' | 'past_due' | 'canceled' | 'unpaid'
+     */
+    subscriptionStatus: {
+      type: String,
+      enum: ['none', 'pending', 'incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'canceled', 'unpaid'],
+      default: 'none',
+    },
   },
   {
     timestamps: true,

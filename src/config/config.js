@@ -22,6 +22,11 @@ const envVarsSchema = Joi.object()
     TWILIO_ACCOUNT_SID: Joi.string().description('Twilio account SID'),
     TWILIO_AUTH_TOKEN: Joi.string().description('Twilio auth token'),
     TWILIO_PHONE_NUMBER: Joi.string().description('Twilio phone number'),
+    STRIPE_SECRET_KEY: Joi.string().description('Stripe secret API key'),
+    STRIPE_WEBHOOK_SECRET: Joi.string().description('Stripe webhook signing secret'),
+    STRIPE_PRICE_ID: Joi.string().description('Stripe Price ID for the driver monthly subscription'),
+    STRIPE_CURRENCY: Joi.string().default('GBP').description('Currency for Stripe subscriptions'),
+    DRIVER_SUBSCRIPTION_RETURN_URL: Joi.string().description('URL to redirect driver after Stripe Checkout or portal'),
   })
   .unknown();
 
@@ -67,5 +72,12 @@ module.exports = {
     accountSid: envVars.TWILIO_ACCOUNT_SID,
     authToken: envVars.TWILIO_AUTH_TOKEN,
     phoneNumber: envVars.TWILIO_PHONE_NUMBER,
+  },
+  stripe: {
+    secretKey: envVars.STRIPE_SECRET_KEY,
+    webhookSecret: envVars.STRIPE_WEBHOOK_SECRET,
+    priceId: envVars.STRIPE_PRICE_ID,
+    currency: envVars.STRIPE_CURRENCY,
+    subscriptionReturnUrl: envVars.DRIVER_SUBSCRIPTION_RETURN_URL,
   },
 };

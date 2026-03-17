@@ -5,3 +5,5 @@ module.exports.twilioService = require('./twilio.service');
 module.exports.userService = require('./user.service');
 module.exports.driverService = require('./driver.service');
 module.exports.rideService = require('./ride.service');
+module.exports.stripeService = require('./stripe.service');
+module.exports.subscriptionService = require('./subscription.service');
