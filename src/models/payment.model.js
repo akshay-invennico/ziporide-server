@@ -36,6 +36,7 @@ const paymentSchema = new mongoose.Schema(
     },
     currency: {
       type: String,
+      enum: ['GBP'],
       default: 'GBP',
       uppercase: true,
     },

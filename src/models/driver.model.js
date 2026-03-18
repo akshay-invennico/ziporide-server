@@ -28,7 +28,7 @@ const vehicleSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ['electric', 'standard', 'xl'],
+      enum: ['electric', 'standard', 'xl', 'executive'],
       default: 'standard',
     },
     registrationNumber: { type: String, trim: true, uppercase: true },
@@ -155,11 +155,44 @@ const driverSchema = new mongoose.Schema(
       enum: ['none', 'pending', 'incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'canceled', 'unpaid'],
       default: 'none',
     },
+
+    isOnline: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    currentLocation: {
+      type: {
+        type: String,
+        enum: ['Point'],
+      },
+      coordinates: {
+        type: [Number],
+      },
+    },
+
+    socketId: {
+      type: String,
+      default: null,
+    },
+    stripeAccountId: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
+
+    isBankLinked: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+driverSchema.index({ currentLocation: '2dsphere' });
 
 driverSchema.plugin(toJSON);
 driverSchema.plugin(paginate);

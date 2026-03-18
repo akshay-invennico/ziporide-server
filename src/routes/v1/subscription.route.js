@@ -9,6 +9,8 @@ router.post('/checkout', auth(), subscriptionController.createCheckoutSession);
 router.get('/status', auth(), subscriptionController.getSubscriptionStatus);
 router.post('/cancel', auth(), subscriptionController.cancelSubscription);
 router.post('/portal', auth(), subscriptionController.createPortalSession);
+router.get('/transactions', auth(), subscriptionController.getTransactionHistory);
+router.get('/payment-method', auth(), subscriptionController.getPaymentMethod);
 
 module.exports = router;
 
@@ -93,4 +95,3 @@ module.exports = router;
  *       "401":
  *         $ref: '#/components/responses/Unauthorized'
  */
-

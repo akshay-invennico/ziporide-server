@@ -25,8 +25,15 @@ const envVarsSchema = Joi.object()
     STRIPE_SECRET_KEY: Joi.string().description('Stripe secret API key'),
     STRIPE_WEBHOOK_SECRET: Joi.string().description('Stripe webhook signing secret'),
     STRIPE_PRICE_ID: Joi.string().description('Stripe Price ID for the driver monthly subscription'),
-    STRIPE_CURRENCY: Joi.string().default('GBP').description('Currency for Stripe subscriptions'),
+    STRIPE_CURRENCY: Joi.string()
+      .valid('GBP')
+      .default('GBP')
+      .description('Currency for all Stripe charges and payouts (GBP only — UK product)'),
     DRIVER_SUBSCRIPTION_RETURN_URL: Joi.string().description('URL to redirect driver after Stripe Checkout or portal'),
+    STRIPE_CONNECT_RETURN_URL: Joi.string().description('URL to redirect driver after completing bank account onboarding'),
+    STRIPE_CONNECT_REFRESH_URL: Joi.string().description(
+      'URL to redirect driver if the bank account onboarding link expires'
+    ),
   })
   .unknown();
 
@@ -79,5 +86,7 @@ module.exports = {
     priceId: envVars.STRIPE_PRICE_ID,
     currency: envVars.STRIPE_CURRENCY,
     subscriptionReturnUrl: envVars.DRIVER_SUBSCRIPTION_RETURN_URL,
+    connectReturnUrl: envVars.STRIPE_CONNECT_RETURN_URL,
+    connectRefreshUrl: envVars.STRIPE_CONNECT_REFRESH_URL,
   },
 };

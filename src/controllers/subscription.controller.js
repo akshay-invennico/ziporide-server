@@ -65,10 +65,39 @@ const createPortalSession = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * GET /v1/driver/subscription/transactions
+ * Get the driver's subscription payment / invoice history.
+ */
+const getTransactionHistory = catchAsync(async (req, res) => {
+  const limit = parseInt(req.query.limit, 10) || 20;
+  const data = await subscriptionService.getTransactionHistory(req.user.id, limit);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Transaction history retrieved',
+    data,
+  });
+});
+
+/**
+ * GET /v1/driver/subscription/payment-method
+ * Get the card / payment method used for the driver's subscription.
+ */
+const getPaymentMethod = catchAsync(async (req, res) => {
+  const data = await subscriptionService.getPaymentMethod(req.user.id);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: data.paymentMethod ? 'Payment method retrieved' : 'No payment method found',
+    data,
+  });
+});
+
 module.exports = {
   createCheckoutSession,
   handleWebhook,
   getSubscriptionStatus,
   cancelSubscription,
   createPortalSession,
+  getTransactionHistory,
+  getPaymentMethod,
 };

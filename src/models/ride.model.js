@@ -26,7 +26,7 @@ const fareBreakdownSchema = new mongoose.Schema(
     cancellationFee: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
     totalFare: { type: Number, default: 0 },
-    currency: { type: String, default: 'GBP' },
+    currency: { type: String, enum: ['GBP'], default: 'GBP' },
     estimatedFare: { type: Number, default: 0 },
   },
   { _id: false }

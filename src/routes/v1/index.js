@@ -5,6 +5,7 @@ const docsRoute = require('./docs.route');
 const driverRoute = require('./driver.route');
 const rideRoute = require('./ride.route');
 const subscriptionRoute = require('./subscription.route');
+const accountRoute = require('./account.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -25,6 +26,10 @@ const defaultRoutes = [
   {
     path: '/driver/subscription',
     route: subscriptionRoute,
+  },
+  {
+    path: '/driver/account',
+    route: accountRoute,
   },
   {
     path: '/ride',

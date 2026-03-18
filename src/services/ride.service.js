@@ -1,6 +1,8 @@
 const httpStatus = require('http-status');
 const { Ride } = require('../models');
 const ApiError = require('../utils/ApiError');
+const dispatchService = require('./dispatch.service');
+const logger = require('../config/logger');
 
 // Fare table per vehicle type (in GBP)
 const FARE_CONFIG = {
@@ -34,7 +36,7 @@ const calculateFare = (vehicleType, distanceKm = 0, durationMin = 0, surgeMultip
     surgeMultiplier,
     totalFare,
     estimatedFare: totalFare,
-    currency: 'GBP',
+    currency: config.stripe.currency,
   };
 };
 
@@ -45,7 +47,7 @@ const calculateFare = (vehicleType, distanceKm = 0, durationMin = 0, surgeMultip
 const generatePickupOtp = () => Math.floor(1000 + Math.random() * 9000).toString();
 
 /**
- * Create a new ride request.
+ * Create a new ride request and immediately kick off the driver dispatch process.
  * @param {ObjectId} riderId  - authenticated user's _id
  * @param {Object}   rideData - validated request body
  * @returns {Promise<Ride>}
@@ -79,6 +81,18 @@ const createRide = async (riderId, rideData) => {
     fare: fareBreakdown,
     pickupOtp: generatePickupOtp(),
     status: 'searching',
+  });
+
+  // Start dispatch asynchronously so the HTTP response is sent immediately.
+  // The rider will receive real-time updates via Socket.io.
+  setImmediate(async () => {
+    try {
+      const { getIO } = require('../socket');
+      const io = getIO();
+      await dispatchService.startDispatch(io, ride);
+    } catch (err) {
+      logger.error(`Dispatch failed for ride ${ride._id}: ${err.message}`);
+    }
   });
 
   return ride;
@@ -159,6 +173,18 @@ const cancelRide = async (rideId, riderId, cancellationData) => {
   ride.rideTimestamps.cancelledAt = new Date();
 
   await ride.save();
+
+  // Cancel any in-flight dispatch and notify the driver who currently holds the offer
+  setImmediate(() => {
+    try {
+      const { getIO } = require('../socket');
+      const io = getIO();
+      dispatchService.cancelDispatch(io, rideId);
+    } catch (err) {
+      // Socket may not be available in test environments — safe to ignore
+    }
+  });
+
   return ride;
 };
 

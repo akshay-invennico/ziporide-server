@@ -25,6 +25,10 @@ const createCheckoutSession = async (driverId) => {
     throw new ApiError(httpStatus.FORBIDDEN, 'Your account must be approved before you can subscribe');
   }
 
+  if (!driver.isBankLinked) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'Please link your bank account before subscribing');
+  }
+
   // Check for an already-active subscription
   const existingSubscription = await Subscription.findOne({
     driver: driverId,
@@ -265,10 +269,126 @@ const createPortalSession = async (driverId) => {
   return { url: session.url };
 };
 
+/**
+ * Get subscription transaction / invoice history for a driver.
+ * Returns Stripe invoices formatted for UI display.
+ * @param {string} driverId
+ * @param {number} [limit=20]
+ * @returns {Promise<object[]>}
+ */
+const getTransactionHistory = async (driverId, limit = 20) => {
+  const driver = await Driver.findById(driverId);
+  if (!driver) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
+  }
+
+  if (!driver.stripeCustomerId) {
+    return { transactions: [] };
+  }
+
+  const invoiceList = await stripeService.listInvoices(driver.stripeCustomerId, limit);
+
+  const transactions = invoiceList.data.map((invoice) => ({
+    id: invoice.id,
+    invoiceNumber: invoice.number,
+    description: invoice.description || 'Monthly Subscription',
+    amount: invoice.amount_paid / 100, // Convert pence to pounds
+    currency: invoice.currency.toUpperCase(),
+    status: invoice.status, // 'draft' | 'open' | 'paid' | 'uncollectible' | 'void'
+    paid: invoice.paid,
+    invoiceUrl: invoice.hosted_invoice_url,
+    pdfUrl: invoice.invoice_pdf,
+    periodStart: invoice.period_start ? new Date(invoice.period_start * 1000) : null,
+    periodEnd: invoice.period_end ? new Date(invoice.period_end * 1000) : null,
+    createdAt: new Date(invoice.created * 1000),
+    paymentIntent: invoice.payment_intent
+      ? {
+          id: invoice.payment_intent.id,
+          status: invoice.payment_intent.status,
+          paymentMethod: invoice.payment_intent.payment_method,
+        }
+      : null,
+  }));
+
+  return { transactions };
+};
+
+/**
+ * Get the payment method (card) used for the driver's subscription.
+ * @param {string} driverId
+ * @returns {Promise<object>}
+ */
+const getPaymentMethod = async (driverId) => {
+  const driver = await Driver.findById(driverId);
+  if (!driver) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
+  }
+
+  if (!driver.stripeCustomerId) {
+    return { paymentMethod: null };
+  }
+
+  // Get the active subscription to find the default payment method
+  const subscription = await Subscription.findOne({
+    driver: driverId,
+    status: { $in: ['active', 'trialing', 'past_due'] },
+  }).sort({ createdAt: -1 });
+
+  if (!subscription?.stripeSubscriptionId) {
+    return { paymentMethod: null };
+  }
+
+  // Retrieve the Stripe subscription to get the payment method
+  const stripeSub = await stripeService.retrieveSubscription(subscription.stripeSubscriptionId);
+
+  const pmId = stripeSub.default_payment_method || stripeSub.latest_invoice?.payment_intent?.payment_method;
+
+  if (!pmId) {
+    // Fall back to listing all payment methods on the customer
+    const pmList = await stripeService.listPaymentMethods(driver.stripeCustomerId, 'card');
+    if (!pmList.data.length) return { paymentMethod: null };
+
+    const pm = pmList.data[0];
+    return {
+      paymentMethod: _formatPaymentMethod(pm),
+    };
+  }
+
+  const pm = await stripeService.retrievePaymentMethod(pmId);
+  return { paymentMethod: _formatPaymentMethod(pm) };
+};
+
+/** @private Format a Stripe PaymentMethod for the UI */
+const _formatPaymentMethod = (pm) => {
+  if (!pm) return null;
+
+  if (pm.type === 'card') {
+    return {
+      id: pm.id,
+      type: 'card',
+      brand: pm.card.brand,           // 'visa' | 'mastercard' | 'amex' etc.
+      last4: pm.card.last4,
+      expMonth: pm.card.exp_month,
+      expYear: pm.card.exp_year,
+      funding: pm.card.funding,       // 'credit' | 'debit' | 'prepaid'
+      country: pm.card.country,
+      holderName: pm.billing_details?.name || null,
+    };
+  }
+
+  // apple_pay / google_pay come through as 'card' type in Stripe's model
+  return {
+    id: pm.id,
+    type: pm.type,
+  };
+};
+
 module.exports = {
   createCheckoutSession,
   handleWebhook,
   getSubscriptionStatus,
   cancelSubscription,
   createPortalSession,
+  getTransactionHistory,
+  getPaymentMethod,
 };

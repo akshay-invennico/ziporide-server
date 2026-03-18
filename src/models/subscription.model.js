@@ -38,16 +38,11 @@ const subscriptionSchema = new mongoose.Schema(
     },
     currency: {
       type: String,
+      enum: ['GBP'],
       uppercase: true,
       default: 'GBP',
     },
 
-    // ── Subscription lifecycle ─────────────────────────────────────────────
-    /**
-     * Maps directly to Stripe subscription statuses:
-     * incomplete | incomplete_expired | trialing | active | past_due | canceled | unpaid
-     * We also add 'pending' for sessions not yet completed.
-     */
     status: {
       type: String,
       enum: ['pending', 'incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'canceled', 'unpaid'],

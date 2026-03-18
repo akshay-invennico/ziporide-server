@@ -1,5 +1,3 @@
-const Joi = require('joi');
-
 const createCheckoutSession = {
   // No body parameters needed – driver is identified from JWT
 };
