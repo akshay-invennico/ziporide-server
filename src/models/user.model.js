@@ -33,6 +33,7 @@ const userSchema = mongoose.Schema(
       type: String,
       trim: true,
       lowercase: true,
+      default: null,
       validate(value) {
         if (value && !validator.isEmail(value)) {
           throw new Error('Invalid email');
@@ -93,6 +94,16 @@ userSchema.statics.isPhoneTaken = async function (phone, excludeUserId) {
   const user = await this.findOne({ phone, _id: { $ne: excludeUserId } });
   return !!user;
 };
+
+userSchema.index(
+  { email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      email: { $exists: true, $ne: null },
+    },
+  }
+);
 
 /**
  * Check if stored OTP matches the provided OTP and hasn't expired
