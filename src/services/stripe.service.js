@@ -149,10 +149,11 @@ const createConnectAccount = async ({ email, driverId }) => {
   return stripe.accounts.create({
     type: 'express',
     country: 'GB',
-    default_currency: 'gbp', // Stripe requires lowercase — GBP for all driver payouts
+    default_currency: 'gbp',
     email,
     capabilities: {
       transfers: { requested: true },
+      card_payments: { requested: true },
     },
     business_type: 'individual',
     metadata: { driverId: driverId.toString() },
