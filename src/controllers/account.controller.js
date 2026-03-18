@@ -43,8 +43,36 @@ const deleteBankAccount = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * POST /v1/driver/bank-account/verify
+ * Called by the frontend immediately after Stripe redirects back to STRIPE_CONNECT_RETURN_URL.
+ * Checks Stripe in real-time and sets isBankLinked = true in the database.
+ */
+const verifyBankAccount = catchAsync(async (req, res) => {
+  const data = await accountService.verifyBankAccount(req.user.id);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: data.message,
+    data,
+  });
+});
+
+/**
+ * POST /v1/driver/bank-account/webhook
+ * Stripe Connect webhook — called automatically by Stripe on account.updated events.
+ * No JWT auth — secured via Stripe signature verification instead.
+ */
+const handleConnectWebhook = catchAsync(async (req, res) => {
+  const signature = req.headers['stripe-signature'];
+  // req.body is a raw Buffer here — app.js applies express.raw() before express.json() for this path
+  await accountService.handleConnectWebhook(req.body, signature);
+  res.status(httpStatus.OK).send({ received: true });
+});
+
 module.exports = {
   linkBankAccount,
   getBankAccount,
   deleteBankAccount,
+  verifyBankAccount,
+  handleConnectWebhook,
 };

@@ -111,12 +111,25 @@ const cancelSubscriptionImmediately = async (subscriptionId) => {
 
 /**
  * Construct and verify a Stripe Webhook Event from the raw request body.
+ * Used for subscription events (checkout, invoice, etc.)
  * @param {Buffer} rawBody      – Raw request body (must NOT be JSON-parsed)
  * @param {string} signature    – Value of the `stripe-signature` header
  * @returns {Stripe.Event}
  */
 const constructWebhookEvent = (rawBody, signature) => {
   return getStripe().webhooks.constructEvent(rawBody, signature, config.stripe.webhookSecret);
+};
+
+/**
+ * Construct and verify a Stripe Connect Webhook Event.
+ * Used for account events (account.updated — bank account linked/verified).
+ * Uses a SEPARATE signing secret from the subscription webhook.
+ * @param {Buffer} rawBody
+ * @param {string} signature
+ * @returns {Stripe.Event}
+ */
+const constructConnectWebhookEvent = (rawBody, signature) => {
+  return getStripe().webhooks.constructEvent(rawBody, signature, config.stripe.connectWebhookSecret);
 };
 
 /**
@@ -260,6 +273,7 @@ module.exports = {
   cancelSubscription,
   cancelSubscriptionImmediately,
   constructWebhookEvent,
+  constructConnectWebhookEvent,
   createPortalSession,
   // Connect
   createConnectAccount,

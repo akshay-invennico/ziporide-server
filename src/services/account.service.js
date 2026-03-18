@@ -153,8 +153,88 @@ const deleteBankAccount = async (driverId, bankAccountId) => {
   return { success: true, message: 'Bank account removed successfully' };
 };
 
+/**
+ * Verify and sync bank account status after Stripe Connect onboarding completes.
+ *
+ * The frontend MUST call this endpoint when Stripe redirects back to
+ * STRIPE_CONNECT_RETURN_URL. This is the primary mechanism that sets
+ * isBankLinked = true in the database.
+ *
+ * @param {string} driverId
+ * @returns {Promise<{ linked: boolean, message: string }>}
+ */
+const verifyBankAccount = async (driverId) => {
+  const driver = await Driver.findById(driverId);
+  if (!driver) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
+  }
+
+  if (!driver.stripeAccountId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'No Stripe Connect account found. Please start bank account linking first.');
+  }
+
+  const account = await stripeService.retrieveConnectAccount(driver.stripeAccountId);
+
+  const isLinked = account.payouts_enabled && account.details_submitted;
+
+  // Always update the DB to reflect current Stripe state
+  await Driver.findByIdAndUpdate(driverId, { isBankLinked: isLinked });
+
+  if (!isLinked) {
+    // Provide a specific reason so the frontend can guide the driver
+    const reason = !account.details_submitted
+      ? 'Onboarding not completed. Please complete the bank account setup.'
+      : 'Payouts not yet enabled. Stripe may still be verifying your account.';
+
+    return {
+      linked: false,
+      payoutsEnabled: account.payouts_enabled,
+      detailsSubmitted: account.details_submitted,
+      message: reason,
+    };
+  }
+
+  return {
+    linked: true,
+    payoutsEnabled: true,
+    detailsSubmitted: true,
+    message: 'Bank account verified and linked successfully.',
+  };
+};
+
+/**
+ * Handle Stripe Connect webhook events (account.updated).
+ * Stripe calls this automatically when a driver's Connect account changes.
+ * This is the background/automatic complement to verifyBankAccount().
+ *
+ * @param {Buffer} rawBody  – Raw request body (unparsed)
+ * @param {string} signature – stripe-signature header value
+ */
+const handleConnectWebhook = async (rawBody, signature) => {
+  let event;
+  try {
+    event = stripeService.constructConnectWebhookEvent(rawBody, signature);
+  } catch (err) {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Connect webhook signature verification failed: ${err.message}`);
+  }
+
+  if (event.type === 'account.updated') {
+    const account = event.data.object;
+
+    const isLinked = account.payouts_enabled && account.details_submitted;
+
+    // Find driver by their Stripe Connect account ID and update
+    await Driver.findOneAndUpdate(
+      { stripeAccountId: account.id },
+      { isBankLinked: isLinked }
+    );
+  }
+};
+
 module.exports = {
   linkBankAccount,
   getBankAccount,
   deleteBankAccount,
+  verifyBankAccount,
+  handleConnectWebhook,
 };

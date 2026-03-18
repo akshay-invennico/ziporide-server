@@ -22,7 +22,8 @@ const createCheckoutSession = catchAsync(async (req, res) => {
  */
 const handleWebhook = catchAsync(async (req, res) => {
   const signature = req.headers['stripe-signature'];
-  await subscriptionService.handleWebhook(req.rawBody, signature);
+  // req.body is a raw Buffer here — app.js applies express.raw() before express.json() for this path
+  await subscriptionService.handleWebhook(req.body, signature);
   res.status(httpStatus.OK).send({ received: true });
 });
 

@@ -24,6 +24,10 @@ if (config.env !== 'test') {
 // set security HTTP headers
 app.use(helmet());
 
+// stripe webhooks
+app.use('/v1/driver/subscription/webhook', express.raw({ type: 'application/json' }));
+app.use('/v1/driver/account/webhook', express.raw({ type: 'application/json' }));
+
 // parse json request body
 app.use(express.json());
 
