@@ -224,10 +224,7 @@ const handleConnectWebhook = async (rawBody, signature) => {
     const isLinked = account.payouts_enabled && account.details_submitted;
 
     // Find driver by their Stripe Connect account ID and update
-    await Driver.findOneAndUpdate(
-      { stripeAccountId: account.id },
-      { isBankLinked: isLinked }
-    );
+    await Driver.findOneAndUpdate({ stripeAccountId: account.id }, { isBankLinked: isLinked });
   }
 };
 

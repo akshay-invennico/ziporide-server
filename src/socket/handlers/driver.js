@@ -74,6 +74,9 @@ const setupDriverHandlers = (io, socket) => {
         socketId: null,
       });
 
+      // If this driver was holding a ride offer, release it to the next driver
+      await dispatchService.handleDriverDisconnect(io, driverId);
+
       logger.info(`Driver ${driverId} is OFFLINE`);
       callback?.({ success: true, message: 'You are now offline' });
     } catch (err) {

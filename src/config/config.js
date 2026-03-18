@@ -34,7 +34,9 @@ const envVarsSchema = Joi.object()
     STRIPE_CONNECT_REFRESH_URL: Joi.string().description(
       'URL to redirect driver if the bank account onboarding link expires'
     ),
-    STRIPE_CONNECT_WEBHOOK_SECRET: Joi.string().description('Stripe Connect webhook signing secret for account.updated events'),
+    STRIPE_CONNECT_WEBHOOK_SECRET: Joi.string().description(
+      'Stripe Connect webhook signing secret for account.updated events'
+    ),
   })
   .unknown();
 

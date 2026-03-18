@@ -1,6 +1,7 @@
 module.exports.authService = require('./auth.service');
 module.exports.dispatchService = require('./dispatch.service');
 module.exports.accountService = require('./account.service');
+module.exports.driverStatusService = require('./driverStatus.service');
 module.exports.emailService = require('./email.service');
 module.exports.tokenService = require('./token.service');
 module.exports.twilioService = require('./twilio.service');

@@ -63,9 +63,38 @@ const getRides = {
   }),
 };
 
+// ── Driver-side validations ────────────────────────────────────────────────
+
+const acceptRide = {
+  params: Joi.object().keys({
+    rideId: Joi.string().required(),
+  }),
+};
+
+const declineRide = {
+  params: Joi.object().keys({
+    rideId: Joi.string().required(),
+  }),
+  body: Joi.object().keys({
+    reason: Joi.string().valid('busy', 'too_far', 'wrong_vehicle_type', 'personal_reason', 'other').optional(),
+  }),
+};
+
+const getDriverRides = {
+  query: Joi.object().keys({
+    status: Joi.string().valid('driver_allocated', 'driver_arrived', 'in_progress', 'completed', 'cancelled').optional(),
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(50).default(10),
+    sortBy: Joi.string().optional(),
+  }),
+};
+
 module.exports = {
   createRide,
   cancelRide,
   getRide,
   getRides,
+  acceptRide,
+  declineRide,
+  getDriverRides,
 };
