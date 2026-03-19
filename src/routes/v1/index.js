@@ -8,6 +8,7 @@ const subscriptionRoute = require('./subscription.route');
 const accountRoute = require('./account.route');
 const driverStatusRoute = require('./driverStatus.route');
 const driverRideRoute = require('./driverRide.route');
+const imageRoute = require('./image.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -44,6 +45,10 @@ const defaultRoutes = [
   {
     path: '/ride',
     route: rideRoute,
+  },
+  {
+    path: '/image',
+    route: imageRoute,
   },
 ];
 
