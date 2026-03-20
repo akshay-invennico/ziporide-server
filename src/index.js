@@ -16,9 +16,7 @@ mongoose.connect(config.mongoose.url, config.mongoose.options).then(async () => 
   try {
     const userCollection = mongoose.connection.collection('users');
     const indexes = await userCollection.indexes();
-    const staleIndex = indexes.find(
-      (idx) => idx.name === 'email_1' && !idx.partialFilterExpression
-    );
+    const staleIndex = indexes.find((idx) => idx.name === 'email_1' && !idx.partialFilterExpression);
     if (staleIndex) {
       await userCollection.dropIndex('email_1');
       logger.info('Dropped stale email_1 index — will be recreated with partialFilterExpression');

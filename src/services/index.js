@@ -10,3 +10,4 @@ module.exports.driverService = require('./driver.service');
 module.exports.rideService = require('./ride.service');
 module.exports.stripeService = require('./stripe.service');
 module.exports.subscriptionService = require('./subscription.service');
+module.exports.inventoryService = require('./inventory.service');
