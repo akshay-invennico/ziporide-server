@@ -4,7 +4,7 @@ const VehicleCategory = require('../models/inventory.model');
 const Pricing = require('../models/pricing.model');
 const ApiError = require('../utils/ApiError');
 const dispatchService = require('./dispatch.service');
-const googleMapsService = require('./googleMaps.service');
+const mapboxService = require('./mapbox.service');
 const logger = require('../config/logger');
 
 /** Generate a 4-digit pickup OTP for driver verification at pickup point. */
@@ -39,7 +39,7 @@ const createRide = async (riderId, rideData) => {
   }
 
   // Get real route distance & duration from Google Maps
-  const route = await googleMapsService.getDistanceAndDuration(pickup, stops, destination);
+  const route = await mapboxService.getDistanceAndDuration(pickup, stops, destination);
 
   // Build fare from pricing config
   const pricing = await Pricing.findOne();

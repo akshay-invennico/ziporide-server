@@ -48,9 +48,9 @@
   ],
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1012.0",
-    "@googlemaps/google-maps-services-js": "^3.4.2",
     "@sendgrid/mail": "^8.1.6",
     "aws-sdk": "^2.1693.0",
+    "axios": "^1.13.6",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
     "cors": "^2.8.5",

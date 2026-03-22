@@ -2,7 +2,7 @@ const httpStatus = require('http-status');
 const Pricing = require('../models/pricing.model');
 const VehicleCategory = require('../models/inventory.model');
 const ApiError = require('../utils/ApiError');
-const googleMapsService = require('./googleMaps.service');
+const mapboxService = require('./mapbox.service');
 
 const _round = (val) => Math.round(val * 100) / 100;
 
@@ -140,7 +140,7 @@ const getRideOptions = async ({ pickup, stops = [], destination, isAirportRide =
   const [pricing, categories, route] = await Promise.all([
     getPricing(),
     VehicleCategory.find({ isActive: true }).sort({ baseFare: 1 }),
-    googleMapsService.getDistanceAndDuration(pickup, stops, destination),
+    mapboxService.getDistanceAndDuration(pickup, stops, destination),
   ]);
 
   if (!categories.length) {
