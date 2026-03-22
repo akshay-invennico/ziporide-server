@@ -37,6 +37,9 @@ const envVarsSchema = Joi.object()
     STRIPE_CONNECT_WEBHOOK_SECRET: Joi.string().description(
       'Stripe Connect webhook signing secret for account.updated events'
     ),
+    GOOGLE_MAPS_API_KEY: Joi.string()
+      .required()
+      .description('Google Maps Platform API key for Distance Matrix and Directions'),
     AWS_ACCESS_KEY_ID: Joi.string().description('AWS access key ID'),
     AWS_SECRET_ACCESS_KEY: Joi.string().description('AWS secret access key'),
     AWS_BUCKET_REGION: Joi.string().description('AWS region'),
@@ -96,6 +99,9 @@ module.exports = {
     connectReturnUrl: envVars.STRIPE_CONNECT_RETURN_URL,
     connectRefreshUrl: envVars.STRIPE_CONNECT_REFRESH_URL,
     connectWebhookSecret: envVars.STRIPE_CONNECT_WEBHOOK_SECRET,
+  },
+  googleMaps: {
+    apiKey: envVars.GOOGLE_MAPS_API_KEY,
   },
   aws: {
     s3: {

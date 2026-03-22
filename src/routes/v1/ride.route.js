@@ -9,6 +9,13 @@ const router = express.Router();
 router.use(auth());
 
 /**
+ * @route   POST /v1/ride/options
+ * @desc    Get all available ride options with estimated fares (Choose Your Ride screen)
+ * @access  Private (rider)
+ */
+router.post('/options', validate(rideValidation.getRideOptions), rideController.getRideOptions);
+
+/**
  * @route   POST /v1/ride
  * @desc    Create new ride request
  * @access  Private (rider)

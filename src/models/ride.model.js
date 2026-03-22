@@ -100,8 +100,17 @@ const rideSchema = new mongoose.Schema(
     },
     vehicleType: {
       type: String,
-      enum: ['electric', 'standard', 'xl', 'executive'],
+      enum: ['car', 'bike', 'van', 'electric', 'standard', 'xl', 'executive'],
       required: true,
+    },
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'VehicleCategory',
+      index: true,
+    },
+    isAirportRide: {
+      type: Boolean,
+      default: false,
     },
     status: {
       type: String,

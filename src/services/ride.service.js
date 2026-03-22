@@ -1,42 +1,16 @@
 const httpStatus = require('http-status');
 const { Ride } = require('../models');
+const VehicleCategory = require('../models/inventory.model');
+const Pricing = require('../models/pricing.model');
 const ApiError = require('../utils/ApiError');
 const dispatchService = require('./dispatch.service');
+const googleMapsService = require('./googleMaps.service');
 const logger = require('../config/logger');
-const config = require('../config/config');
-
-// Fare table per vehicle type (in GBP)
-const FARE_CONFIG = {
-  electric:  { baseFare: 1.99, perKm: 0.8,  perMinute: 0.1  },
-  standard:  { baseFare: 2.50, perKm: 1.2,  perMinute: 0.15 },
-  xl:        { baseFare: 3.50, perKm: 1.5,  perMinute: 0.18 },
-  executive: { baseFare: 5.00, perKm: 2.0,  perMinute: 0.25 },
-};
-
-/**
- * Calculate estimated fare.
- * Distance / duration are placeholders until a routing API is integrated.
- */
-const calculateFare = (vehicleType, distanceKm = 0, durationMin = 0, surgeMultiplier = 1) => {
-  const cfg = FARE_CONFIG[vehicleType] || FARE_CONFIG.standard;
-  const distanceFare   = parseFloat((distanceKm  * cfg.perKm).toFixed(2));
-  const timeFare       = parseFloat((durationMin * cfg.perMinute).toFixed(2));
-  const subtotal       = cfg.baseFare + distanceFare + timeFare;
-  const totalFare      = parseFloat((subtotal * surgeMultiplier).toFixed(2));
-
-  return {
-    baseFare: cfg.baseFare,
-    distanceFare,
-    timeFare,
-    surgeMultiplier,
-    totalFare,
-    estimatedFare: totalFare,
-    currency: config.stripe.currency, // Always GBP
-  };
-};
 
 /** Generate a 4-digit pickup OTP for driver verification at pickup point. */
 const generatePickupOtp = () => Math.floor(1000 + Math.random() * 9000).toString();
+
+const _round = (val) => Math.round(val * 100) / 100;
 
 /**
  * Create a new ride request.
@@ -44,7 +18,7 @@ const generatePickupOtp = () => Math.floor(1000 + Math.random() * 9000).toString
  * asynchronously so the HTTP response is not delayed.
  */
 const createRide = async (riderId, rideData) => {
-  const { pickup, stops = [], destination, vehicleType, paymentMethod, estimatedFare } = rideData;
+  const { pickup, stops = [], destination, categoryId, paymentMethod, estimatedFare, isAirportRide = false } = rideData;
 
   // Block if rider already has an active ride
   const activeRide = await Ride.findOne({
@@ -55,15 +29,45 @@ const createRide = async (riderId, rideData) => {
     throw new ApiError(httpStatus.CONFLICT, 'You already have an active ride in progress');
   }
 
-  const fareBreakdown = calculateFare(vehicleType);
-  if (estimatedFare) fareBreakdown.estimatedFare = estimatedFare;
+  // Validate the selected category
+  const category = await VehicleCategory.findById(categoryId);
+  if (!category) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Vehicle category not found');
+  }
+  if (!category.isActive) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Selected vehicle category is not available');
+  }
+
+  // Get real route distance & duration from Google Maps
+  const route = await googleMapsService.getDistanceAndDuration(pickup, stops, destination);
+
+  // Build fare from pricing config
+  const pricing = await Pricing.findOne();
+  const surgeMultiplier = pricing?.surgePricing?.enabled ? pricing.surgePricing.multiplier : 1;
+  const distanceFare = _round(route.distanceMiles * category.pricePerMile);
+  const timeFare = _round(route.durationMinutes * category.pricePerMinute);
+
+  const fareBreakdown = {
+    baseFare: category.baseFare,
+    distanceFare,
+    timeFare,
+    surgeMultiplier,
+    cancellationFee: pricing?.cancellationFee || 0,
+    totalFare: estimatedFare || _round(Math.max((category.baseFare + distanceFare + timeFare) * surgeMultiplier, pricing?.minimumFare || 0)),
+    estimatedFare: estimatedFare || _round(Math.max((category.baseFare + distanceFare + timeFare) * surgeMultiplier, pricing?.minimumFare || 0)),
+    currency: 'GBP',
+  };
 
   const ride = await Ride.create({
     rider: riderId,
     pickup,
     stops,
     destination,
-    vehicleType,
+    vehicleType: category.vehicleType,
+    category: categoryId,
+    isAirportRide,
+    distanceKm: _round(route.distanceMiles * 1.60934),
+    durationMinutes: route.durationMinutes,
     paymentMethod: paymentMethod || undefined,
     fare: fareBreakdown,
     pickupOtp: generatePickupOtp(),

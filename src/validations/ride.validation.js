@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const { objectId } = require('./custom.validation');
 
 // Reusable location schema matching the ride model's locationPointSchema
 const locationSchema = Joi.object({
@@ -13,9 +14,19 @@ const createRide = {
     pickup: locationSchema.required(),
     stops: Joi.array().items(locationSchema).max(5).default([]).optional(),
     destination: locationSchema.required(),
-    vehicleType: Joi.string().valid('electric', 'standard', 'xl', 'executive').required(),
-    paymentMethod: Joi.string().optional(), // ObjectId string for payment method
+    categoryId: Joi.string().custom(objectId).required(),
+    paymentMethod: Joi.string().optional(),
     estimatedFare: Joi.number().min(0).optional(),
+    isAirportRide: Joi.boolean().default(false),
+  }),
+};
+
+const getRideOptions = {
+  body: Joi.object().keys({
+    pickup: locationSchema.required(),
+    stops: Joi.array().items(locationSchema).max(5).default([]).optional(),
+    destination: locationSchema.required(),
+    isAirportRide: Joi.boolean().default(false),
   }),
 };
 
@@ -91,6 +102,7 @@ const getDriverRides = {
 
 module.exports = {
   createRide,
+  getRideOptions,
   cancelRide,
   getRide,
   getRides,

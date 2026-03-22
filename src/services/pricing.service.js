@@ -2,9 +2,12 @@ const httpStatus = require('http-status');
 const Pricing = require('../models/pricing.model');
 const VehicleCategory = require('../models/inventory.model');
 const ApiError = require('../utils/ApiError');
+const googleMapsService = require('./googleMaps.service');
+
+const _round = (val) => Math.round(val * 100) / 100;
 
 /**
- * Get the current pricing config (singleton document)
+ * Get the current pricing config (singleton document).
  * @returns {Promise<Pricing>}
  */
 const getPricing = async () => {
@@ -16,7 +19,7 @@ const getPricing = async () => {
 };
 
 /**
- * Create or update the pricing config (only one document ever exists)
+ * Create or update the pricing config (only one document ever exists).
  * @param {Object} body
  * @returns {Promise<Pricing>}
  */
@@ -36,41 +39,34 @@ const upsertPricing = async (body) => {
 };
 
 /**
- * Estimate fare for a ride based on pricing config and vehicle category
- * @param {Object} params - { distanceMiles, durationMinutes, categoryId, isAirportRide }
- * @returns {Promise<Object>} fare breakdown
+ * Compute fare breakdown for a single category given pricing config.
+ * Pure function — no DB or API calls.
+ *
+ * Fare formula:
+ *   subtotal   = baseFare + (distanceMiles × pricePerMile) + (durationMinutes × pricePerMinute)
+ *   + airportParkingCharge  (if airport ride)
+ *   × surgeMultiplier       (if surge enabled)
+ *   totalFare  = max(subtotal, minimumFare)
  */
-const estimateFare = async ({ distanceMiles, durationMinutes, categoryId, isAirportRide }) => {
-  const pricing = await getPricing();
-  const category = await VehicleCategory.findById(categoryId);
-  if (!category) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Vehicle category not found');
-  }
-  if (!category.isActive) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Vehicle category is not active');
-  }
-
+const _computeFareForCategory = (pricing, category, distanceMiles, durationMinutes, isAirportRide) => {
   const { baseFare } = category;
   const distanceCharge = distanceMiles * category.pricePerMile;
   const timeCharge = durationMinutes * category.pricePerMinute;
 
   let subtotal = baseFare + distanceCharge + timeCharge;
 
-  // Airport parking charge
   let airportCharge = 0;
   if (isAirportRide) {
     airportCharge = pricing.airportParkingCharge;
     subtotal += airportCharge;
   }
 
-  // Surge pricing
   let surgeAmount = 0;
   if (pricing.surgePricing.enabled && pricing.surgePricing.multiplier > 1) {
     surgeAmount = subtotal * (pricing.surgePricing.multiplier - 1);
     subtotal += surgeAmount;
   }
 
-  // Apply minimum fare
   const totalFare = Math.max(subtotal, pricing.minimumFare);
 
   return {
@@ -89,6 +85,31 @@ const estimateFare = async ({ distanceMiles, durationMinutes, categoryId, isAirp
     },
     minimumFare: pricing.minimumFare,
     totalFare: _round(totalFare),
+    currency: 'GBP',
+  };
+};
+
+/**
+ * Estimate fare for a single ride given distance and duration.
+ * Intended for the admin "Example Fare Calculation" preview.
+ *
+ * @param {Object} params - { distanceMiles, durationMinutes, categoryId, isAirportRide }
+ * @returns {Promise<Object>} fare breakdown
+ */
+const estimateFare = async ({ distanceMiles, durationMinutes, categoryId, isAirportRide }) => {
+  const pricing = await getPricing();
+  const category = await VehicleCategory.findById(categoryId);
+  if (!category) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Vehicle category not found');
+  }
+  if (!category.isActive) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Vehicle category is not active');
+  }
+
+  const fareBreakdown = _computeFareForCategory(pricing, category, distanceMiles, durationMinutes, isAirportRide);
+
+  return {
+    ...fareBreakdown,
     category: {
       id: category.id,
       name: category.name,
@@ -103,10 +124,73 @@ const estimateFare = async ({ distanceMiles, durationMinutes, categoryId, isAirp
   };
 };
 
-const _round = (val) => Math.round(val * 100) / 100;
+/**
+ * Get all ride options — powers the "Choose Your Ride" screen.
+ *
+ * 1. Calls Google Maps Distance Matrix / Directions API to get real
+ *    road distance (miles) and duration (minutes) for the route.
+ * 2. Fetches all active vehicle categories.
+ * 3. Computes fare for each category using the pricing config.
+ * 4. Returns route info + sorted ride options for the client to render.
+ *
+ * @param {Object} params - { pickup, stops, destination, isAirportRide }
+ * @returns {Promise<Object>} route info + array of ride options
+ */
+const getRideOptions = async ({ pickup, stops = [], destination, isAirportRide = false }) => {
+  const [pricing, categories, route] = await Promise.all([
+    getPricing(),
+    VehicleCategory.find({ isActive: true }).sort({ baseFare: 1 }),
+    googleMapsService.getDistanceAndDuration(pickup, stops, destination),
+  ]);
+
+  if (!categories.length) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'No vehicle categories available at the moment');
+  }
+
+  const options = categories.map((category) => {
+    const fareBreakdown = _computeFareForCategory(
+      pricing,
+      category,
+      route.distanceMiles,
+      route.durationMinutes,
+      isAirportRide
+    );
+
+    return {
+      categoryId: category.id,
+      name: category.name,
+      vehicleType: category.vehicleType,
+      seatCapacity: category.seatCapacity,
+      categoryIcon: category.categoryIcon,
+      estimatedFare: fareBreakdown.totalFare,
+      fareBreakdown,
+    };
+  });
+
+  return {
+    route: {
+      distanceMiles: route.distanceMiles,
+      durationMinutes: route.durationMinutes,
+      distanceText: route.distanceText,
+      durationText: route.durationText,
+    },
+    surgePricing: {
+      enabled: pricing.surgePricing.enabled,
+      multiplier: pricing.surgePricing.multiplier,
+    },
+    waitingPolicy: {
+      freeWaitingTime: pricing.freeWaitingTime,
+      maxPaidWaitingTime: pricing.maxPaidWaitingTime,
+      waitingChargePerMin: pricing.waitingCharge,
+      cancellationFee: pricing.cancellationFee,
+    },
+    options,
+  };
+};
 
 module.exports = {
   getPricing,
   upsertPricing,
   estimateFare,
+  getRideOptions,
 };

@@ -1,7 +1,16 @@
 const httpStatus = require('http-status');
 const catchAsync = require('../utils/catchAsync');
-const { rideService } = require('../services');
+const { rideService, pricingService } = require('../services');
 const pick = require('../utils/pick');
+
+const getRideOptions = catchAsync(async (req, res) => {
+  const result = await pricingService.getRideOptions(req.body);
+  res.send({
+    success: true,
+    message: 'Ride options retrieved successfully',
+    data: result,
+  });
+});
 
 const createRide = catchAsync(async (req, res) => {
   const ride = await rideService.createRide(req.user.id, req.body);
@@ -42,6 +51,7 @@ const cancelRide = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  getRideOptions,
   createRide,
   getRides,
   getRide,
