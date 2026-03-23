@@ -25,10 +25,6 @@ const createCheckoutSession = async (driverId) => {
     throw new ApiError(httpStatus.FORBIDDEN, 'Your account must be approved before you can subscribe');
   }
 
-  if (!driver.isBankLinked) {
-    throw new ApiError(httpStatus.FORBIDDEN, 'Please link your bank account before subscribing');
-  }
-
   // Check for an already-active subscription
   const existingSubscription = await Subscription.findOne({
     driver: driverId,
@@ -303,10 +299,10 @@ const getTransactionHistory = async (driverId, limit = 20) => {
     createdAt: new Date(invoice.created * 1000),
     paymentIntent: invoice.payment_intent
       ? {
-          id: invoice.payment_intent.id,
-          status: invoice.payment_intent.status,
-          paymentMethod: invoice.payment_intent.payment_method,
-        }
+        id: invoice.payment_intent.id,
+        status: invoice.payment_intent.status,
+        paymentMethod: invoice.payment_intent.payment_method,
+      }
       : null,
   }));
 
