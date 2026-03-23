@@ -134,8 +134,13 @@ const rideSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ['pending', 'paid', 'failed', 'refunded', 'waived'],
+      enum: ['pending', 'authorized', 'paid', 'failed', 'refunded', 'waived'],
       default: 'pending',
+    },
+    stripePaymentIntentId: {
+      type: String,
+      index: true,
+      sparse: true,
     },
     cancellation: {
       type: cancellationSchema,

@@ -42,6 +42,37 @@ router.get('/current', driverRideController.getCurrentRide);
 router.get('/', validate(rideValidation.getDriverRides), driverRideController.getDriverRides);
 
 /**
+ * POST /v1/driver/rides/:rideId/arrived
+ * Driver marks arrival at the pickup location.
+ * Transitions ride from driver_allocated → driver_arrived.
+ */
+router.post('/:rideId/arrived', validate(rideValidation.arrivedAtPickup), driverRideController.arrivedAtPickup);
+
+/**
+ * POST /v1/driver/rides/:rideId/verify-otp
+ * Driver submits the 4-digit OTP from the rider's phone.
+ * Transitions ride from driver_arrived → in_progress.
+ * Body: { otp: "1234" }
+ */
+router.post('/:rideId/verify/otp', validate(rideValidation.verifyOtp), driverRideController.verifyOtp);
+
+/**
+ * POST /v1/driver/rides/:rideId/complete
+ * Driver marks the ride as completed at the destination.
+ * Transitions ride from in_progress → completed.
+ * Triggers payment capture.
+ */
+router.post('/:rideId/complete', validate(rideValidation.completeRide), driverRideController.completeRide);
+
+/**
+ * POST /v1/driver/rides/:rideId/cancel
+ * Driver cancels an assigned ride (before trip starts).
+ * Allowed in driver_allocated or driver_arrived status.
+ * Body: { reason: string, customReason?: string }
+ */
+router.post('/:rideId/cancel', validate(rideValidation.driverCancelRide), driverRideController.cancelRide);
+
+/**
  * GET /v1/driver/rides/:rideId
  * Get full details of a specific ride assigned to this driver.
  */

@@ -103,10 +103,81 @@ const getDriverRide = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * POST /v1/driver/rides/:rideId/arrived
+ *
+ * Driver marks arrival at the pickup location.
+ * Transitions ride from driver_allocated → driver_arrived.
+ */
+const arrivedAtPickup = catchAsync(async (req, res) => {
+  const ride = await rideService.driverArrived(req.params.rideId, req.user.id);
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Arrival marked successfully',
+    data: { ride },
+  });
+});
+
+/**
+ * POST /v1/driver/rides/:rideId/verify-otp
+ *
+ * Driver submits the 4-digit OTP shown on the rider's phone.
+ * Transitions ride from driver_arrived → in_progress.
+ * Body: { otp: string }
+ */
+const verifyOtp = catchAsync(async (req, res) => {
+  const ride = await rideService.verifyOtpAndStartRide(req.params.rideId, req.user.id, req.body.otp);
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'OTP verified — ride started',
+    data: { ride },
+  });
+});
+
+/**
+ * POST /v1/driver/rides/:rideId/complete
+ *
+ * Driver marks the ride as completed at the destination.
+ * Transitions ride from in_progress → completed.
+ * Triggers payment capture asynchronously.
+ */
+const completeRide = catchAsync(async (req, res) => {
+  const ride = await rideService.completeRide(req.params.rideId, req.user.id);
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Ride completed successfully',
+    data: { ride },
+  });
+});
+
+/**
+ * POST /v1/driver/rides/:rideId/cancel
+ *
+ * Driver cancels an assigned ride before the trip starts.
+ * Allowed only when status is driver_allocated or driver_arrived.
+ * Body: { reason: string, customReason?: string }
+ */
+const cancelRide = catchAsync(async (req, res) => {
+  const ride = await rideService.cancelRideByDriver(req.params.rideId, req.user.id, req.body);
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Ride cancelled successfully',
+    data: { ride },
+  });
+});
+
 module.exports = {
   acceptRide,
   declineRide,
   getDriverRides,
   getCurrentRide,
   getDriverRide,
+  arrivedAtPickup,
+  verifyOtp,
+  completeRide,
+  cancelRide,
 };

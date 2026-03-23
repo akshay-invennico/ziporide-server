@@ -33,7 +33,7 @@ const getDistanceAndDuration = async (origin, stops = [], destination) => {
       },
     });
 
-    const data = response.data;
+    const { data } = response;
 
     if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
       logger.error('Mapbox Directions API error:', data.code || 'No routes');
@@ -79,7 +79,7 @@ const getETA = async (driverCoordinates, pickupCoordinates) => {
       },
     });
 
-    const data = response.data;
+    const { data } = response;
 
     if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
       return { etaMinutes: 0, etaText: 'N/A', distanceMiles: 0 };

@@ -32,6 +32,7 @@ const initSocket = async (httpServer) => {
       origin: '*', // tighten this to your frontend origin in production
       methods: ['GET', 'POST'],
     },
+    transports: ['websocket'],
   });
 
   // Reset all drivers to offline on server start.

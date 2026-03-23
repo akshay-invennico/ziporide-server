@@ -15,7 +15,7 @@ const createRide = {
     stops: Joi.array().items(locationSchema).max(5).default([]).optional(),
     destination: locationSchema.required(),
     categoryId: Joi.string().custom(objectId).required(),
-    paymentMethod: Joi.string().optional(),
+    paymentMethod: Joi.string().custom(objectId).required(),
     estimatedFare: Joi.number().min(0).optional(),
     isAirportRide: Joi.boolean().default(false),
   }),
@@ -100,6 +100,56 @@ const getDriverRides = {
   }),
 };
 
+const arrivedAtPickup = {
+  params: Joi.object().keys({
+    rideId: Joi.string().required(),
+  }),
+};
+
+const verifyOtp = {
+  params: Joi.object().keys({
+    rideId: Joi.string().required(),
+  }),
+  body: Joi.object().keys({
+    otp: Joi.string().length(4).required().messages({
+      'string.length': 'OTP must be exactly 4 digits',
+    }),
+  }),
+};
+
+const completeRide = {
+  params: Joi.object().keys({
+    rideId: Joi.string().required(),
+  }),
+};
+
+const driverCancelRide = {
+  params: Joi.object().keys({
+    rideId: Joi.string().required(),
+  }),
+  body: Joi.object().keys({
+    reason: Joi.string()
+      .valid(
+        'taking_too_long',
+        'wrong_location',
+        'changed_mind',
+        'found_another_ride',
+        'ordered_by_mistake',
+        'driver_not_moving',
+        'other'
+      )
+      .required(),
+    customReason: Joi.string()
+      .trim()
+      .max(300)
+      .when('reason', {
+        is: 'other',
+        then: Joi.string().required(),
+        otherwise: Joi.string().allow('', null).optional(),
+      }),
+  }),
+};
+
 module.exports = {
   createRide,
   getRideOptions,
@@ -109,4 +159,8 @@ module.exports = {
   acceptRide,
   declineRide,
   getDriverRides,
+  arrivedAtPickup,
+  verifyOtp,
+  completeRide,
+  driverCancelRide,
 };

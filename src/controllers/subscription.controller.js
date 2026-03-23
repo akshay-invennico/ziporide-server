@@ -3,6 +3,20 @@ const catchAsync = require('../utils/catchAsync');
 const { subscriptionService } = require('../services');
 
 /**
+ * GET /v1/driver/subscription/plan
+ * Get the subscription plan details (name, price, features) from Stripe.
+ * Used to display the plan screen before the driver subscribes.
+ */
+const getSubscriptionPlan = catchAsync(async (req, res) => {
+  const data = await subscriptionService.getSubscriptionPlan();
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Subscription plan retrieved',
+    data,
+  });
+});
+
+/**
  * POST /v1/driver/subscription/checkout
  * Create a Stripe Checkout Session.
  * Returns a URL for the driver to complete payment.
@@ -94,6 +108,7 @@ const getPaymentMethod = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  getSubscriptionPlan,
   createCheckoutSession,
   handleWebhook,
   getSubscriptionStatus,

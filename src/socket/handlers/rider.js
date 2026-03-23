@@ -10,6 +10,11 @@
  * Events emitted TO the rider by the server (for reference):
  *   ride:driver_assigned      - A driver accepted and is on the way
  *   ride:no_drivers_available - No drivers found in the area
+ *   ride:driver_location      - Real-time driver GPS updates (lat/lng)
+ *   ride:driver_arrived       - Driver has arrived at the pickup point
+ *   ride:started              - OTP verified, ride has begun
+ *   ride:completed            - Ride finished, payment captured
+ *   ride:cancelled_by_driver  - Driver cancelled the ride
  */
 
 const logger = require('../../config/logger');

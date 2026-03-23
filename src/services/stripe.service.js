@@ -263,10 +263,172 @@ const retrievePaymentMethod = async (paymentMethodId) => {
   return getStripe().paymentMethods.retrieve(paymentMethodId);
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Rider payment – Setup Intents & Payment Methods
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Create a Stripe Customer for a rider.
+ * @param {object} params
+ * @param {string} params.phone
+ * @param {string} [params.email]
+ * @param {string} [params.name]
+ * @param {string} params.riderId – MongoDB user ID stored as metadata
+ * @returns {Promise<Stripe.Customer>}
+ */
+const createRiderCustomer = async ({ phone, email, name, riderId }) => {
+  const stripe = getStripe();
+  return stripe.customers.create({
+    phone,
+    ...(email && { email }),
+    ...(name && { name }),
+    metadata: { riderId: riderId.toString(), role: 'rider' },
+  });
+};
+
+/**
+ * Create a SetupIntent so the client can securely collect card details.
+ * The client_secret is returned to the mobile app which uses it with
+ * Stripe's SDK to confirm the setup and save the payment method.
+ * @param {string} stripeCustomerId
+ * @returns {Promise<Stripe.SetupIntent>}
+ */
+const createSetupIntent = async (stripeCustomerId) => {
+  const stripe = getStripe();
+  return stripe.setupIntents.create({
+    customer: stripeCustomerId,
+    payment_method_types: ['card'],
+  });
+};
+
+/**
+ * Attach a payment method to a customer.
+ * @param {string} paymentMethodId – Stripe pm_xxxx
+ * @param {string} stripeCustomerId – Stripe cus_xxxx
+ * @returns {Promise<Stripe.PaymentMethod>}
+ */
+const attachPaymentMethod = async (paymentMethodId, stripeCustomerId) => {
+  return getStripe().paymentMethods.attach(paymentMethodId, { customer: stripeCustomerId });
+};
+
+/**
+ * Detach a payment method from its customer.
+ * @param {string} paymentMethodId
+ * @returns {Promise<Stripe.PaymentMethod>}
+ */
+const detachPaymentMethod = async (paymentMethodId) => {
+  return getStripe().paymentMethods.detach(paymentMethodId);
+};
+
+/**
+ * List all payment methods for a customer.
+ * @param {string} stripeCustomerId
+ * @param {string} [type='card']
+ * @returns {Promise<Stripe.ApiList<Stripe.PaymentMethod>>}
+ */
+const listCustomerPaymentMethods = async (stripeCustomerId, type = 'card') => {
+  return getStripe().paymentMethods.list({ customer: stripeCustomerId, type });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ride payments – Authorize & Hold (manual capture)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Create a PaymentIntent with manual capture (authorize & hold).
+ * This places a hold on the rider's card for the estimated fare.
+ * The hold is captured after the ride completes or released on cancellation.
+ *
+ * @param {object} params
+ * @param {number} params.amount – Amount in pence (e.g. 1850 for £18.50)
+ * @param {string} params.currency – e.g. 'gbp'
+ * @param {string} params.stripeCustomerId – Stripe cus_xxxx
+ * @param {string} params.paymentMethodId – Stripe pm_xxxx
+ * @param {string} params.rideId – MongoDB ride ID for metadata
+ * @param {string} [params.description]
+ * @returns {Promise<Stripe.PaymentIntent>}
+ */
+const createAuthorizeHold = async ({ amount, currency, stripeCustomerId, paymentMethodId, rideId, description }) => {
+  const stripe = getStripe();
+  return stripe.paymentIntents.create({
+    amount,
+    currency: currency.toLowerCase(),
+    customer: stripeCustomerId,
+    payment_method: paymentMethodId,
+    capture_method: 'manual',
+    confirm: true,
+    off_session: true,
+    metadata: { rideId: rideId.toString() },
+    ...(description && { description }),
+  });
+};
+
+/**
+ * Capture a previously authorized PaymentIntent.
+ * Can capture a lower amount than what was authorized (e.g. actual fare < estimated).
+ *
+ * @param {string} paymentIntentId – Stripe pi_xxxx
+ * @param {number} [amountToCapture] – Amount in pence. If omitted, captures full authorized amount.
+ * @returns {Promise<Stripe.PaymentIntent>}
+ */
+const capturePaymentIntent = async (paymentIntentId, amountToCapture) => {
+  const stripe = getStripe();
+  const params = {};
+  if (amountToCapture !== undefined) {
+    params.amount_to_capture = amountToCapture;
+  }
+  return stripe.paymentIntents.capture(paymentIntentId, params);
+};
+
+/**
+ * Cancel a PaymentIntent (release the hold).
+ * Used when a ride is cancelled before completion.
+ *
+ * @param {string} paymentIntentId – Stripe pi_xxxx
+ * @returns {Promise<Stripe.PaymentIntent>}
+ */
+const cancelPaymentIntent = async (paymentIntentId) => {
+  return getStripe().paymentIntents.cancel(paymentIntentId);
+};
+
+/**
+ * Retrieve a PaymentIntent by ID.
+ * @param {string} paymentIntentId
+ * @returns {Promise<Stripe.PaymentIntent>}
+ */
+const retrievePaymentIntent = async (paymentIntentId) => {
+  return getStripe().paymentIntents.retrieve(paymentIntentId);
+};
+
+/**
+ * Create a refund for a captured PaymentIntent.
+ * @param {string} paymentIntentId
+ * @param {number} [amount] – Partial refund in pence. If omitted, full refund.
+ * @returns {Promise<Stripe.Refund>}
+ */
+const createRefund = async (paymentIntentId, amount) => {
+  const stripe = getStripe();
+  const params = { payment_intent: paymentIntentId };
+  if (amount !== undefined) {
+    params.amount = amount;
+  }
+  return stripe.refunds.create(params);
+};
+
+/**
+ * Retrieve a Stripe Price by ID, expanding its product.
+ * @param {string} priceId – Stripe price_xxxx
+ * @returns {Promise<Stripe.Price>}
+ */
+const retrievePrice = async (priceId) => {
+  return getStripe().prices.retrieve(priceId, { expand: ['product'] });
+};
+
 module.exports = {
   getStripe,
   createCustomer,
   retrieveCustomer,
+  retrievePrice,
   createCheckoutSession,
   retrieveCheckoutSession,
   retrieveSubscription,
@@ -285,4 +447,16 @@ module.exports = {
   listInvoices,
   listPaymentMethods,
   retrievePaymentMethod,
+  // Rider payment methods
+  createRiderCustomer,
+  createSetupIntent,
+  attachPaymentMethod,
+  detachPaymentMethod,
+  listCustomerPaymentMethods,
+  // Ride payments (authorize & hold)
+  createAuthorizeHold,
+  capturePaymentIntent,
+  cancelPaymentIntent,
+  retrievePaymentIntent,
+  createRefund,
 };
