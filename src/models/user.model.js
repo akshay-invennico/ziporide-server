@@ -70,6 +70,12 @@ const userSchema = mongoose.Schema(
       default: false,
     },
 
+    stripeCustomerId: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
+
     lastLoginAt: {
       type: Date,
     },

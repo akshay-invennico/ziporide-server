@@ -6,3 +6,5 @@ module.exports.Subscription = require('./subscription.model');
 module.exports.Rating = require('./rating.model');
 module.exports.VehicleCategory = require('./inventory.model');
 module.exports.Pricing = require('./pricing.model');
+module.exports.Payment = require('./payment.model');
+module.exports.PaymentMethod = require('./paymentMethod.model');

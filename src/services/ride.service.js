@@ -5,6 +5,7 @@ const Pricing = require('../models/pricing.model');
 const ApiError = require('../utils/ApiError');
 const dispatchService = require('./dispatch.service');
 const mapboxService = require('./mapbox.service');
+const paymentService = require('./payment.service');
 const logger = require('../config/logger');
 
 /** Generate a 4-digit pickup OTP for driver verification at pickup point. */
@@ -58,6 +59,11 @@ const createRide = async (riderId, rideData) => {
     currency: 'GBP',
   };
 
+  // Authorize & hold the estimated fare on the rider's card
+  if (!paymentMethod) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'A payment method is required to book a ride');
+  }
+
   const ride = await Ride.create({
     rider: riderId,
     pickup,
@@ -68,11 +74,34 @@ const createRide = async (riderId, rideData) => {
     isAirportRide,
     distanceKm: _round(route.distanceMiles * 1.60934),
     durationMinutes: route.durationMinutes,
-    paymentMethod: paymentMethod || undefined,
+    paymentMethod,
     fare: fareBreakdown,
     pickupOtp: generatePickupOtp(),
     status: 'searching',
   });
+
+  // Place an authorize-and-hold on the rider's card for the estimated fare
+  try {
+    const authResult = await paymentService.authorizeRidePayment({
+      rideId: ride._id,
+      riderId,
+      paymentMethodId: paymentMethod,
+      estimatedFare: fareBreakdown.totalFare,
+      currency: fareBreakdown.currency,
+    });
+
+    ride.stripePaymentIntentId = authResult.paymentIntentId;
+    ride.paymentStatus = 'authorized';
+    await ride.save();
+  } catch (err) {
+    // Authorization failed — delete the ride and throw
+    await Ride.findByIdAndDelete(ride._id);
+    logger.error(`Payment authorization failed for ride ${ride._id}: ${err.message}`);
+    throw new ApiError(
+      err.statusCode || httpStatus.PAYMENT_REQUIRED,
+      err.message || 'Card authorization failed. Please try a different payment method.'
+    );
+  }
 
   // Dispatch is fire-and-forget — rider gets updates via socket
   setImmediate(async () => {
@@ -156,6 +185,17 @@ const cancelRide = async (rideId, riderId, cancellationData) => {
   };
   ride.rideTimestamps.cancelledAt = new Date();
   await ride.save();
+
+  // Release the payment hold (if any)
+  if (ride.stripePaymentIntentId) {
+    setImmediate(async () => {
+      try {
+        await paymentService.releaseRidePayment(rideId);
+      } catch (err) {
+        logger.error(`Failed to release payment hold for cancelled ride ${rideId}: ${err.message}`);
+      }
+    });
+  }
 
   // Kill the dispatch loop and notify the current driver immediately
   setImmediate(() => {

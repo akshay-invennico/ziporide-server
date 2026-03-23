@@ -15,7 +15,7 @@ const createRide = {
     stops: Joi.array().items(locationSchema).max(5).default([]).optional(),
     destination: locationSchema.required(),
     categoryId: Joi.string().custom(objectId).required(),
-    paymentMethod: Joi.string().optional(),
+    paymentMethod: Joi.string().custom(objectId).required(),
     estimatedFare: Joi.number().min(0).optional(),
     isAirportRide: Joi.boolean().default(false),
   }),

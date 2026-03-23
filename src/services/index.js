@@ -13,3 +13,4 @@ module.exports.subscriptionService = require('./subscription.service');
 module.exports.inventoryService = require('./inventory.service');
 module.exports.pricingService = require('./pricing.service');
 module.exports.mapboxService = require('./mapbox.service');
+module.exports.paymentService = require('./payment.service');

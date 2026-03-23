@@ -5,3 +5,4 @@ module.exports.rideValidation = require('./ride.validation');
 module.exports.subscriptionValidation = require('./subscription.validation');
 module.exports.inventoryValidation = require('./inventory.validation');
 module.exports.pricingValidation = require('./pricing.validation');
+module.exports.paymentValidation = require('./payment.validation');

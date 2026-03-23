@@ -12,6 +12,7 @@ const imageRoute = require('./image.route');
 const ratingRoute = require('./rating.route');
 const inventoryRoute = require('./inventory.route');
 const pricingRoute = require('./pricing.route');
+const paymentRoute = require('./payment.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -64,6 +65,10 @@ const defaultRoutes = [
   {
     path: '/pricing',
     route: pricingRoute,
+  },
+  {
+    path: '/payment',
+    route: paymentRoute,
   },
 ];
 

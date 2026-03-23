@@ -5,3 +5,4 @@ module.exports.rideController = require('./ride.controller');
 module.exports.subscriptionController = require('./subscription.controller');
 module.exports.inventoryController = require('./inventory.controller');
 module.exports.pricingController = require('./pricing.controller');
+module.exports.paymentController = require('./payment.controller');
