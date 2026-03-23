@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const { password } = require('./custom.validation');
 
 const sendOtp = {
   body: Joi.object().keys({
@@ -41,10 +42,44 @@ const logout = {
   }),
 };
 
+const adminLogin = {
+  body: Joi.object().keys({
+    email: Joi.string().required().email().trim().lowercase(),
+    password: Joi.string().required(),
+  }),
+};
+
+const forgotPassword = {
+  body: Joi.object().keys({
+    email: Joi.string().required().email().trim().lowercase(),
+  }),
+};
+
+const resetPassword = {
+  body: Joi.object().keys({
+    email: Joi.string().required().email().trim().lowercase(),
+    newPassword: Joi.string().required().custom(password),
+  }),
+};
+
+const verifyOtpEmail = {
+  body: Joi.object().keys({
+    email: Joi.string().required().email().trim().lowercase(),
+    otp: Joi.string().length(6).pattern(/^\d+$/).required().messages({
+      'string.length': 'OTP must be exactly 6 digits',
+      'string.pattern.base': 'OTP must contain only digits',
+    }),
+  }),
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
   completeProfile,
   refreshTokens,
   logout,
+  adminLogin,
+  forgotPassword,
+  resetPassword,
+  verifyOtpEmail,
 };

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
+const bcrypt = require('bcryptjs');
 const { toJSON, paginate } = require('./plugins');
 
 const userSchema = mongoose.Schema(
@@ -38,6 +39,16 @@ const userSchema = mongoose.Schema(
           throw new Error('Invalid email');
         }
       },
+    },
+
+    password: {
+      type: String,
+      select: false,
+    },
+
+    isAdmin: {
+      type: Boolean,
+      default: false,
     },
 
     gender: {
@@ -79,6 +90,14 @@ const userSchema = mongoose.Schema(
   }
 );
 
+userSchema.pre('save', async function (next) {
+  const user = this;
+  if (user.isModified('password') && user.password) {
+    user.password = await bcrypt.hash(user.password, 8);
+  }
+  next();
+});
+
 // Plugins
 userSchema.plugin(toJSON);
 userSchema.plugin(paginate);
@@ -115,6 +134,24 @@ userSchema.methods.isOtpValid = function (otp) {
   if (user.otp !== otp) return false;
   if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) return false;
   return true;
+};
+
+/**
+ * Check if password matches the provided password
+ * @param {string} password
+ * @returns {Promise<boolean>}
+ */
+userSchema.methods.isPasswordMatch = async function (password) {
+  const user = this;
+  return bcrypt.compare(password, user.password);
+};
+
+/**
+ * Check if user is admin
+ * @returns {boolean}
+ */
+userSchema.methods.isAdminUser = function () {
+  return this.isAdmin === true;
 };
 
 const User = mongoose.model('User', userSchema);

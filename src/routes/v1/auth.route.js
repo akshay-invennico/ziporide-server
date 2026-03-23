@@ -1,6 +1,6 @@
 const express = require('express');
 const validate = require('../../middlewares/validate');
-const auth = require('../../middlewares/auth');
+const { auth } = require('../../middlewares/auth');
 const authValidation = require('../../validations/auth.validation');
 const authController = require('../../controllers/auth.controller');
 
@@ -165,5 +165,106 @@ router.post('/refresh/tokens', validate(authValidation.refreshTokens), authContr
  *         $ref: '#/components/responses/NotFound'
  */
 router.post('/logout', validate(authValidation.logout), authController.logout);
+
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Admin login with email and password
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "admin@example.com"
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: "admin123456"
+ *     responses:
+ *       "200":
+ *         description: Admin login successful. Returns user object and JWT tokens.
+ *       "401":
+ *         description: Incorrect email or password
+ *       "403":
+ *         description: Access denied or account blocked
+ */
+router.post('/login', validate(authValidation.adminLogin), authController.adminLogin);
+
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     summary: Send password reset OTP to email (for admin users)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "admin@example.com"
+ *     responses:
+ *       "200":
+ *         description: Password reset OTP sent successfully
+ *       "404":
+ *         description: User not found
+ */
+router.post('/forgot/password', validate(authValidation.forgotPassword), authController.forgotPassword);
+
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: Reset password using OTP sent to email (for admin users)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *               - newPassword
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "admin@example.com"
+ *               otp:
+ *                 type: string
+ *                 example: "123456"
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: "newPassword123"
+ *     responses:
+ *       "200":
+ *         description: Password reset successful
+ *       "401":
+ *         description: Invalid or expired OTP
+ *       "404":
+ *         description: User not found
+ */
+router.post('/reset/password', validate(authValidation.resetPassword), authController.resetPassword);
+
+router.post('/verify/otp/email', validate(authValidation.verifyOtpEmail), authController.verifyOtpEmail);
 
 module.exports = router;
