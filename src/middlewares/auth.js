@@ -2,6 +2,7 @@ const passport = require('passport');
 const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const { roleRights } = require('../config/roles');
+const User = require('../models/user.model');
 
 const verifyCallback = (req, resolve, reject, requiredRights) => async (err, user, info) => {
   if (err || info || !user) {
@@ -28,4 +29,19 @@ const auth = (...requiredRights) => async (req, res, next) => {
     .catch((err) => next(err));
 };
 
-module.exports = auth;
+const admin = () => async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user || !user.isAdminUser()) {
+      throw new ApiError(httpStatus.FORBIDDEN, 'Access denied. Admin privileges required.');
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  auth,
+  admin,
+};

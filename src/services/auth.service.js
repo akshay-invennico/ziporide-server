@@ -1,3 +1,5 @@
+const fs = require('fs').promises;
+const path = require('path');
 const httpStatus = require('http-status');
 const moment = require('moment');
 const { User } = require('../models');
@@ -6,6 +8,7 @@ const twilioService = require('./twilio.service');
 const { tokenTypes } = require('../config/tokens');
 const Token = require('../models/token.model');
 const tokenService = require('./token.service');
+const emailService = require('./email.service');
 
 /**
  * @returns {string}
@@ -120,10 +123,117 @@ const refreshAuth = async (refreshToken) => {
   }
 };
 
+/**
+ * @param {string} email
+ * @param {string} password
+ * @returns {Promise<User>}
+ */
+const adminLogin = async (email, password) => {
+  const user = await User.findOne({ email }).select('+password');
+
+  if (!user) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
+  }
+
+  if (!user.isAdminUser()) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'Access denied. Admin privileges required.');
+  }
+
+  if (user.status === 'blocked') {
+    throw new ApiError(httpStatus.FORBIDDEN, 'Your account has been blocked. Please contact support.');
+  }
+
+  if (!(await user.isPasswordMatch(password))) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
+  }
+
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  return user;
+};
+
+/**
+ * @param {string} email
+ * @returns {Promise}
+ */
+const forgotPassword = async (email) => {
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'No user found with this email address');
+  }
+
+  const otp = generateOtp();
+  const otpExpiresAt = moment().add(15, 'minutes').toDate();
+
+  user.otp = otp;
+  user.otpExpiresAt = otpExpiresAt;
+  await user.save();
+
+  // Read and render the OTP template
+  const templatePath = path.join(__dirname, '../template/otp-verification.html');
+  let htmlTemplate = await fs.readFile(templatePath, 'utf8');
+
+  // Replace template variables
+  htmlTemplate = htmlTemplate
+    .replace(/{{userName}}/g, user.name || 'User')
+    .replace(/{{otpCode}}/g, otp)
+    .replace(/{{expiryMinutes}}/g, '15');
+
+  // Send email with OTP
+  const subject = 'ZipoRide - Password Reset OTP';
+  const text = `Your password reset OTP is: ${otp}. This OTP will expire in 15 minutes.`;
+
+  await emailService.sendEmail(user.email, subject, text, htmlTemplate);
+};
+
+/**
+ * @param {string} email
+ * @param {string} newPassword
+ * @returns {Promise}
+ */
+const resetPassword = async (email, newPassword) => {
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'No user found with this email address');
+  }
+
+  user.password = newPassword;
+  user.otp = undefined;
+  user.otpExpiresAt = undefined;
+  await user.save();
+};
+
+const verifyOtpEmail = async (email, otp) => {
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'No user found with this email address');
+  }
+
+  if (!user.isOtpValid(otp)) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid or expired OTP');
+  }
+
+  user.isPhoneVerified = true;
+  user.otp = undefined;
+  user.otpExpiresAt = undefined;
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  return user;
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
   completeProfile,
   logout,
   refreshAuth,
+  adminLogin,
+  forgotPassword,
+  resetPassword,
+  verifyOtpEmail,
 };
