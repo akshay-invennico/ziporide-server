@@ -54,10 +54,55 @@ const logout = catchAsync(async (req, res) => {
   });
 });
 
+const adminLogin = catchAsync(async (req, res) => {
+  const { email, password } = req.body;
+  const user = await authService.adminLogin(email, password);
+  const tokens = await tokenService.generateAuthTokens(user);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Admin login successful',
+    data: {
+      user,
+      tokens,
+    },
+  });
+});
+
+const forgotPassword = catchAsync(async (req, res) => {
+  const { email } = req.body;
+  await authService.forgotPassword(email);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Password reset OTP sent to your email',
+  });
+});
+
+const resetPassword = catchAsync(async (req, res) => {
+  const { email, newPassword } = req.body;
+  await authService.resetPassword(email, newPassword);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Password reset successful',
+  });
+});
+
+const verifyOtpEmail = catchAsync(async (req, res) => {
+  const { email, otp } = req.body;
+  await authService.verifyOtpEmail(email, otp);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'OTP verified successfully',
+  });
+});
+
 module.exports = {
   sendOtp,
   verifyOtp,
   completeProfile,
   refreshTokens,
   logout,
+  adminLogin,
+  forgotPassword,
+  resetPassword,
+  verifyOtpEmail,
 };

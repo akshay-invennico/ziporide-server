@@ -1,6 +1,6 @@
 const express = require('express');
 const validate = require('../../middlewares/validate');
-const auth = require('../../middlewares/auth');
+const { auth } = require('../../middlewares/auth');
 const driverValidation = require('../../validations/driver.validation');
 const driverController = require('../../controllers/driver.controller');
 
