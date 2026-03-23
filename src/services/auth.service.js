@@ -1,3 +1,5 @@
+const fs = require('fs').promises;
+const path = require('path');
 const httpStatus = require('http-status');
 const moment = require('moment');
 const { User } = require('../models');
@@ -169,24 +171,21 @@ const forgotPassword = async (email) => {
   user.otpExpiresAt = otpExpiresAt;
   await user.save();
 
+  // Read and render the OTP template
+  const templatePath = path.join(__dirname, '../template/otp-verification.html');
+  let htmlTemplate = await fs.readFile(templatePath, 'utf8');
+
+  // Replace template variables
+  htmlTemplate = htmlTemplate
+    .replace(/{{userName}}/g, user.name || 'User')
+    .replace(/{{otpCode}}/g, otp)
+    .replace(/{{expiryMinutes}}/g, '15');
+
   // Send email with OTP
   const subject = 'ZipoRide - Password Reset OTP';
   const text = `Your password reset OTP is: ${otp}. This OTP will expire in 15 minutes.`;
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #00897b;">ZipoRide - Password Reset</h2>
-      <p>Hello ${user.name || 'User'},</p>
-      <p>You requested to reset your password. Use the OTP below to proceed:</p>
-      <div style="background-color: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0;">
-        <h1 style="color: #00897b; font-size: 32px; margin: 0;">${otp}</h1>
-      </div>
-      <p>This OTP will expire in <strong>15 minutes</strong>.</p>
-      <p>If you didn't request this, please ignore this email.</p>
-      <p>Best regards,<br>ZipoRide Team</p>
-    </div>
-  `;
 
-  await emailService.sendEmail(user.email, subject, text, html);
+  await emailService.sendEmail(user.email, subject, text, htmlTemplate);
 };
 
 /**
