@@ -5,6 +5,36 @@ const stripeService = require('./stripe.service');
 const config = require('../config/config');
 
 /**
+ * Get the subscription plan details from Stripe's product catalogue.
+ * Fetches the Price (with expanded Product) configured in STRIPE_PRICE_ID.
+ *
+ * @returns {Promise<object>} Plan details formatted for the UI
+ */
+const getSubscriptionPlan = async () => {
+  const priceId = config.stripe.priceId;
+  if (!priceId) {
+    throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Subscription plan is not configured');
+  }
+
+  const price = await stripeService.retrievePrice(priceId);
+  const product = price.product;
+
+  return {
+    plan: {
+      id: price.id,
+      name: product.name,
+      description: product.description || null,
+      amount: price.unit_amount / 100,
+      currency: price.currency.toUpperCase(),
+      interval: price.recurring?.interval || 'month',
+      intervalCount: price.recurring?.interval_count || 1,
+      features: (product.marketing_features || []).map((f) => f.name),
+      metadata: product.metadata || {},
+    },
+  };
+};
+
+/**
  * Create a Stripe Checkout Session for a driver subscription.
  * If the driver doesn't have a Stripe customer record yet, one is created.
  *
@@ -380,6 +410,7 @@ const _formatPaymentMethod = (pm) => {
 };
 
 module.exports = {
+  getSubscriptionPlan,
   createCheckoutSession,
   handleWebhook,
   getSubscriptionStatus,

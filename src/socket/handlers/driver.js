@@ -4,21 +4,26 @@
  * All events emitted BY the driver app and handled on the server.
  *
  * Events listened to:
- *   driver:go_online      - Driver taps "Go Online" in the app
- *   driver:go_offline     - Driver taps "Go Offline"
- *   driver:update_location- Periodic GPS location updates (while online)
- *   driver:accept_ride    - Driver accepts a ride request notification
- *   driver:decline_ride   - Driver declines a ride request notification
- *   disconnect            - Socket disconnected (app closed / network lost)
+ *   driver:go_online       - Driver taps "Go Online" in the app
+ *   driver:go_offline      - Driver taps "Go Offline"
+ *   driver:update_location - Periodic GPS updates (broadcasts to rider during active ride)
+ *   driver:accept_ride     - Driver accepts a ride request notification
+ *   driver:decline_ride    - Driver declines a ride request notification
+ *   driver:arrived         - Driver arrived at pickup location
+ *   driver:verify_otp      - Driver enters OTP to start the ride
+ *   driver:complete_ride   - Driver completes the ride at destination
+ *   driver:cancel_ride     - Driver cancels an assigned ride
+ *   disconnect             - Socket disconnected (app closed / network lost)
  *
  * Events emitted TO the driver by the server (for reference):
- *   ride:new_request      - New ride offer with 15-second window
- *   ride:request_expired  - The 15-second window closed before response
+ *   ride:new_request       - New ride offer with 15-second window
+ *   ride:request_expired   - The 15-second window closed before response
  *   ride:cancelled_by_rider - Rider cancelled while driver had the offer
  */
 
-const { Driver } = require('../../models');
+const { Driver, Ride } = require('../../models');
 const dispatchService = require('../../services/dispatch.service');
+const rideService = require('../../services/ride.service');
 const logger = require('../../config/logger');
 
 const setupDriverHandlers = (io, socket) => {
@@ -85,32 +90,6 @@ const setupDriverHandlers = (io, socket) => {
     }
   });
 
-  // ── driver:update_location ──────────────────────────────────────────────
-  // Payload: { latitude: number, longitude: number }
-  // Callback: { success: boolean }
-  // Should be called every few seconds while the driver is online / on a trip.
-  socket.on('driver:update_location', async (data, callback) => {
-    try {
-      const { latitude, longitude } = data || {};
-
-      if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-        return callback?.({ success: false, message: 'latitude and longitude (numbers) are required' });
-      }
-
-      await Driver.findByIdAndUpdate(driverId, {
-        currentLocation: {
-          type: 'Point',
-          coordinates: [longitude, latitude],
-        },
-      });
-
-      callback?.({ success: true });
-    } catch (err) {
-      logger.error(`driver:update_location error for ${driverId}: ${err.message}`);
-      callback?.({ success: false, message: 'Failed to update location' });
-    }
-  });
-
   // ── driver:accept_ride ──────────────────────────────────────────────────
   // Payload: { rideId: string }
   // Callback: { success: boolean, ride?: object, message?: string }
@@ -146,6 +125,116 @@ const setupDriverHandlers = (io, socket) => {
     } catch (err) {
       logger.error(`driver:decline_ride error for ${driverId}: ${err.message}`);
       callback?.({ success: false, message: 'Failed to decline ride. Please try again.' });
+    }
+  });
+
+  // ── driver:update_location (broadcast to rider) ────────────────────────
+  // When a driver has an active ride, broadcast their location to the rider
+  // so the rider can see the driver moving on the map in real time.
+  socket.on('driver:update_location', async (data, callback) => {
+    try {
+      const { latitude, longitude } = data || {};
+
+      if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+        return callback?.({ success: false, message: 'latitude and longitude (numbers) are required' });
+      }
+
+      await Driver.findByIdAndUpdate(driverId, {
+        currentLocation: {
+          type: 'Point',
+          coordinates: [longitude, latitude],
+        },
+      });
+
+      // If driver has an active ride, broadcast location to the rider
+      const activeRide = await Ride.findOne({
+        driver: driverId,
+        status: { $in: ['driver_allocated', 'driver_arrived', 'in_progress'] },
+      }).lean();
+
+      if (activeRide) {
+        io.to(`user:${activeRide.rider.toString()}`).emit('ride:driver_location', {
+          rideId: activeRide._id,
+          location: { latitude, longitude },
+        });
+      }
+
+      callback?.({ success: true });
+    } catch (err) {
+      logger.error(`driver:update_location error for ${driverId}: ${err.message}`);
+      callback?.({ success: false, message: 'Failed to update location' });
+    }
+  });
+
+  // ── driver:arrived ────────────────────────────────────────────────────
+  // Payload: { rideId: string }
+  // Driver has arrived at the pickup location.
+  socket.on('driver:arrived', async (data, callback) => {
+    try {
+      const { rideId } = data || {};
+      if (!rideId) {
+        return callback?.({ success: false, message: 'rideId is required' });
+      }
+
+      const ride = await rideService.driverArrived(rideId, driverId);
+      callback?.({ success: true, ride });
+    } catch (err) {
+      logger.error(`driver:arrived error for ${driverId}: ${err.message}`);
+      callback?.({ success: false, message: err.message || 'Failed to mark arrival' });
+    }
+  });
+
+  // ── driver:verify_otp ─────────────────────────────────────────────────
+  // Payload: { rideId: string, otp: string }
+  // Driver enters the OTP shown on the rider's phone to start the ride.
+  socket.on('driver:verify_otp', async (data, callback) => {
+    try {
+      const { rideId, otp } = data || {};
+      if (!rideId || !otp) {
+        return callback?.({ success: false, message: 'rideId and otp are required' });
+      }
+
+      const ride = await rideService.verifyOtpAndStartRide(rideId, driverId, otp);
+      callback?.({ success: true, ride });
+    } catch (err) {
+      logger.error(`driver:verify_otp error for ${driverId}: ${err.message}`);
+      callback?.({ success: false, message: err.message || 'OTP verification failed' });
+    }
+  });
+
+  // ── driver:complete_ride ──────────────────────────────────────────────
+  // Payload: { rideId: string }
+  // Driver marks the ride as completed at the destination.
+  socket.on('driver:complete_ride', async (data, callback) => {
+    try {
+      const { rideId } = data || {};
+      if (!rideId) {
+        return callback?.({ success: false, message: 'rideId is required' });
+      }
+
+      const ride = await rideService.completeRide(rideId, driverId);
+      callback?.({ success: true, ride });
+    } catch (err) {
+      logger.error(`driver:complete_ride error for ${driverId}: ${err.message}`);
+      callback?.({ success: false, message: err.message || 'Failed to complete ride' });
+    }
+  });
+
+  // ── driver:cancel_ride ────────────────────────────────────────────────
+  // Payload: { rideId: string, reason: string, customReason?: string }
+  // Driver cancels an assigned ride before the trip starts.
+  socket.on('driver:cancel_ride', async (data, callback) => {
+    try {
+      const { rideId, reason, customReason } = data || {};
+      if (!rideId || !reason) {
+        return callback?.({ success: false, message: 'rideId and reason are required' });
+      }
+
+      const ride = await rideService.cancelRideByDriver(rideId, driverId, { reason, customReason });
+      callback?.({ success: true, ride });
+    } catch (err) {
+      logger.error(`driver:cancel_ride error for ${driverId}: ${err.message}`);
+      callback?.({ success: false, message: err.message || 'Failed to cancel ride' });
     }
   });
 

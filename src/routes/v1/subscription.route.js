@@ -5,6 +5,7 @@ const subscriptionController = require('../../controllers/subscription.controlle
 const router = express.Router();
 
 router.post('/webhook', subscriptionController.handleWebhook);
+router.get('/plan', auth(), subscriptionController.getSubscriptionPlan);
 router.post('/checkout', auth(), subscriptionController.createCheckoutSession);
 router.get('/status', auth(), subscriptionController.getSubscriptionStatus);
 router.post('/cancel', auth(), subscriptionController.cancelSubscription);

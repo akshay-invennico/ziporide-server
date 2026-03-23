@@ -238,6 +238,192 @@ const getCurrentRideForDriver = async (driverId) => {
   return ride || null;
 };
 
+/**
+ * Driver marks arrival at the pickup point.
+ * Transitions ride from driver_allocated → driver_arrived.
+ */
+const driverArrived = async (rideId, driverId) => {
+  const ride = await Ride.findById(rideId);
+
+  if (!ride) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
+  }
+  if (!ride.driver || ride.driver.toString() !== driverId.toString()) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You are not the assigned driver for this ride');
+  }
+  if (ride.status !== 'driver_allocated') {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Cannot mark arrived — ride status is '${ride.status}'`);
+  }
+
+  ride.status = 'driver_arrived';
+  ride.rideTimestamps.driverArrivedAt = new Date();
+  await ride.save();
+
+  // Notify rider
+  setImmediate(() => {
+    try {
+      const { getIO } = require('../socket');
+      getIO().to(`user:${ride.rider.toString()}`).emit('ride:driver_arrived', {
+        rideId: ride._id,
+        message: 'Your driver has arrived at the pickup point.',
+      });
+    } catch {
+      // socket may not be available in tests
+    }
+  });
+
+  return ride;
+};
+
+/**
+ * Driver verifies the pickup OTP to start the ride.
+ * Transitions ride from driver_arrived → in_progress.
+ */
+const verifyOtpAndStartRide = async (rideId, driverId, otp) => {
+  const ride = await Ride.findById(rideId);
+
+  if (!ride) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
+  }
+  if (!ride.driver || ride.driver.toString() !== driverId.toString()) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You are not the assigned driver for this ride');
+  }
+  if (ride.status !== 'driver_arrived') {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Cannot start ride — ride status is '${ride.status}'`);
+  }
+  if (ride.pickupOtp !== otp) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid OTP. Please check and try again.');
+  }
+
+  ride.status = 'in_progress';
+  ride.rideTimestamps.startedAt = new Date();
+  await ride.save();
+
+  // Notify rider
+  setImmediate(() => {
+    try {
+      const { getIO } = require('../socket');
+      getIO().to(`user:${ride.rider.toString()}`).emit('ride:started', {
+        rideId: ride._id,
+        message: 'Your ride has started. Enjoy your trip!',
+      });
+    } catch {
+      // socket may not be available in tests
+    }
+  });
+
+  return ride;
+};
+
+/**
+ * Driver completes the ride.
+ * Transitions ride from in_progress → completed.
+ * Captures the actual fare from the payment hold.
+ */
+const completeRide = async (rideId, driverId) => {
+  const ride = await Ride.findById(rideId);
+
+  if (!ride) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
+  }
+  if (!ride.driver || ride.driver.toString() !== driverId.toString()) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You are not the assigned driver for this ride');
+  }
+  if (ride.status !== 'in_progress') {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Cannot complete ride — ride status is '${ride.status}'`);
+  }
+
+  ride.status = 'completed';
+  ride.rideTimestamps.completedAt = new Date();
+  await ride.save();
+
+  // Capture the actual fare
+  if (ride.stripePaymentIntentId) {
+    setImmediate(async () => {
+      try {
+        await paymentService.captureRidePayment(rideId, ride.fare.totalFare);
+      } catch (err) {
+        logger.error(`Failed to capture payment for ride ${rideId}: ${err.message}`);
+      }
+    });
+  }
+
+  // Notify rider
+  setImmediate(() => {
+    try {
+      const { getIO } = require('../socket');
+      getIO().to(`user:${ride.rider.toString()}`).emit('ride:completed', {
+        rideId: ride._id,
+        fare: ride.fare,
+        message: 'Your ride has been completed. Thank you for riding with ZipoRide!',
+      });
+    } catch {
+      // socket may not be available in tests
+    }
+  });
+
+  return ride;
+};
+
+/**
+ * Driver cancels an assigned ride.
+ * Allowed when status is 'driver_allocated' or 'driver_arrived'.
+ */
+const cancelRideByDriver = async (rideId, driverId, cancellationData) => {
+  const ride = await Ride.findById(rideId);
+
+  if (!ride) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
+  }
+  if (!ride.driver || ride.driver.toString() !== driverId.toString()) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You are not the assigned driver for this ride');
+  }
+
+  const cancellableStatuses = ['driver_allocated', 'driver_arrived'];
+  if (!cancellableStatuses.includes(ride.status)) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      `Ride cannot be cancelled at this stage (current status: '${ride.status}')`
+    );
+  }
+
+  ride.status = 'cancelled';
+  ride.cancellation = {
+    cancelledBy: 'driver',
+    reason: cancellationData.reason,
+    customReason: cancellationData.customReason || undefined,
+    cancelledAt: new Date(),
+  };
+  ride.rideTimestamps.cancelledAt = new Date();
+  await ride.save();
+
+  // Release the payment hold
+  if (ride.stripePaymentIntentId) {
+    setImmediate(async () => {
+      try {
+        await paymentService.releaseRidePayment(rideId);
+      } catch (err) {
+        logger.error(`Failed to release payment hold for driver-cancelled ride ${rideId}: ${err.message}`);
+      }
+    });
+  }
+
+  // Notify rider
+  setImmediate(() => {
+    try {
+      const { getIO } = require('../socket');
+      getIO().to(`user:${ride.rider.toString()}`).emit('ride:cancelled_by_driver', {
+        rideId: ride._id,
+        message: 'Your driver has cancelled the ride. We apologise for the inconvenience.',
+      });
+    } catch {
+      // socket may not be available in tests
+    }
+  });
+
+  return ride;
+};
+
 module.exports = {
   createRide,
   getRideById,
@@ -245,4 +431,8 @@ module.exports = {
   getRidesByDriver,
   getCurrentRideForDriver,
   cancelRide,
+  driverArrived,
+  verifyOtpAndStartRide,
+  completeRide,
+  cancelRideByDriver,
 };

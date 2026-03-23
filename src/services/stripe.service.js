@@ -415,10 +415,20 @@ const createRefund = async (paymentIntentId, amount) => {
   return stripe.refunds.create(params);
 };
 
+/**
+ * Retrieve a Stripe Price by ID, expanding its product.
+ * @param {string} priceId – Stripe price_xxxx
+ * @returns {Promise<Stripe.Price>}
+ */
+const retrievePrice = async (priceId) => {
+  return getStripe().prices.retrieve(priceId, { expand: ['product'] });
+};
+
 module.exports = {
   getStripe,
   createCustomer,
   retrieveCustomer,
+  retrievePrice,
   createCheckoutSession,
   retrieveCheckoutSession,
   retrieveSubscription,
