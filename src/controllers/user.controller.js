@@ -3,6 +3,17 @@ const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { userService } = require('../services');
 
+const getMe = catchAsync(async (req, res) => {
+  const { user } = req;
+  const role = user.constructor.modelName === 'Driver' ? 'driver' : 'rider';
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Profile retrieved successfully',
+    data: { role, user },
+  });
+});
+
 const getUser = catchAsync(async (req, res) => {
   const user = await userService.getUserById(req.params.userId);
   if (!user) {
@@ -34,6 +45,7 @@ const deleteUser = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  getMe,
   getUser,
   updateUser,
   deleteUser,
