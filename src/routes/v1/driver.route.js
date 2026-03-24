@@ -14,6 +14,13 @@ router.post('/refresh/tokens', validate(driverValidation.refreshTokens), driverC
 router.post('/logout', validate(driverValidation.logout), driverController.logout);
 router.get('/', auth(), validate(driverValidation.getAllDrivers), driverController.getAllDrivers);
 router.get('/:id', auth(), validate(driverValidation.getDriverById), driverController.getDriverById);
+router.patch(
+  '/:id/verify/:documentType',
+  auth(),
+  validate(driverValidation.verifyDocument),
+  driverController.verifyDocument
+);
+router.patch('/:id/status', auth(), validate(driverValidation.updateDriverStatus), driverController.updateDriverStatus);
 
 module.exports = router;
 

@@ -98,6 +98,34 @@ const getDriverById = catchAsync(async (req, res) => {
   });
 });
 
+const verifyDocument = catchAsync(async (req, res) => {
+  const { id, documentType } = req.params;
+  const { rejectedReason } = req.body;
+
+  const driver = await driverService.verifyDocument(id, documentType, rejectedReason);
+
+  const action = rejectedReason ? 'rejected' : 'verified';
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: `Document ${action} successfully`,
+    data: { driver },
+  });
+});
+
+const updateDriverStatus = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { action, reason } = req.body;
+
+  const driver = await driverService.updateDriverStatus(id, action, reason);
+
+  const message = action === 'approve' ? 'Driver approved successfully' : 'Driver rejected successfully';
+  res.status(httpStatus.OK).send({
+    success: true,
+    message,
+    data: { driver },
+  });
+});
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -109,4 +137,6 @@ module.exports = {
   logout,
   getAllDrivers,
   getDriverById,
+  verifyDocument,
+  updateDriverStatus,
 };

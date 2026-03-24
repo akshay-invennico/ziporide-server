@@ -101,6 +101,26 @@ const getDriverById = {
   }),
 };
 
+const verifyDocument = {
+  params: Joi.object().keys({
+    id: Joi.string().required().hex().length(24),
+    documentType: Joi.string().valid('licence', 'insurance', 'mot', 'backgroundCheck').required(),
+  }),
+  body: Joi.object().optional().keys({
+    rejectedReason: Joi.string().optional(),
+  }),
+};
+
+const updateDriverStatus = {
+  params: Joi.object().keys({
+    id: Joi.string().required().hex().length(24),
+  }),
+  body: Joi.object().keys({
+    action: Joi.string().valid('approve', 'reject').required(),
+    reason: Joi.string().optional(),
+  }),
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -112,4 +132,6 @@ module.exports = {
   logout,
   getAllDrivers,
   getDriverById,
+  verifyDocument,
+  updateDriverStatus,
 };

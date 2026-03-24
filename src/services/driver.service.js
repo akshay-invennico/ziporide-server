@@ -5,6 +5,7 @@ const ApiError = require('../utils/ApiError');
 const twilioService = require('./twilio.service');
 const { tokenTypes } = require('../config/tokens');
 const tokenService = require('./token.service');
+const emailService = require('./email.service');
 
 const generateOtp = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -359,6 +360,142 @@ const getDriverById = async (driverId) => {
   return driverObj;
 };
 
+const verifyDocument = async (driverId, documentType, rejectedReason = null) => {
+  const driver = await Driver.findById(driverId);
+  if (!driver) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
+  }
+
+  const updateData = { verifiedAt: new Date() };
+
+  if (rejectedReason) {
+    updateData.isVerified = false;
+    updateData.rejectedReason = rejectedReason;
+  } else {
+    updateData.isVerified = true;
+    updateData.rejectedReason = undefined;
+  }
+
+  switch (documentType) {
+    case 'licence':
+      driver.licence.document.isVerified = updateData.isVerified;
+      driver.licence.document.verifiedAt = updateData.verifiedAt;
+      if (updateData.rejectedReason !== undefined) {
+        driver.licence.document.rejectedReason = updateData.rejectedReason;
+      }
+      break;
+    case 'insurance':
+      driver.vehicle.insurance.isVerified = updateData.isVerified;
+      driver.vehicle.insurance.verifiedAt = updateData.verifiedAt;
+      if (updateData.rejectedReason !== undefined) {
+        driver.vehicle.insurance.rejectedReason = updateData.rejectedReason;
+      }
+      break;
+    case 'mot':
+      driver.vehicle.mot.isVerified = updateData.isVerified;
+      driver.vehicle.mot.verifiedAt = updateData.verifiedAt;
+      if (updateData.rejectedReason !== undefined) {
+        driver.vehicle.mot.rejectedReason = updateData.rejectedReason;
+      }
+      break;
+    case 'backgroundCheck':
+      driver.backgroundCheck.isVerified = updateData.isVerified;
+      driver.backgroundCheck.verifiedAt = updateData.verifiedAt;
+      if (updateData.rejectedReason !== undefined) {
+        driver.backgroundCheck.rejectedReason = updateData.rejectedReason;
+      }
+      break;
+    default:
+      throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid document type');
+  }
+
+  await driver.save();
+  return driver;
+};
+
+const areAllDocumentsVerified = (driver) => {
+  return (
+    driver.licence &&
+    driver.licence.document &&
+    driver.licence.document.isVerified &&
+    driver.vehicle &&
+    driver.vehicle.insurance &&
+    driver.vehicle.insurance.isVerified &&
+    driver.vehicle &&
+    driver.vehicle.mot &&
+    driver.vehicle.mot.isVerified &&
+    driver.backgroundCheck &&
+    driver.backgroundCheck.isVerified
+  );
+};
+
+const getUnverifiedDocuments = (driver) => {
+  const unverified = [];
+
+  if (!driver.licence || !driver.licence.document || !driver.licence.document.isVerified) {
+    unverified.push({
+      document: 'licence',
+      reason:
+        (driver.licence && driver.licence.document && driver.licence.document.rejectedReason) || 'Document not verified',
+    });
+  }
+
+  if (!driver.vehicle || !driver.vehicle.insurance || !driver.vehicle.insurance.isVerified) {
+    unverified.push({
+      document: 'insurance',
+      reason:
+        (driver.vehicle && driver.vehicle.insurance && driver.vehicle.insurance.rejectedReason) || 'Document not verified',
+    });
+  }
+
+  if (!driver.vehicle || !driver.vehicle.mot || !driver.vehicle.mot.isVerified) {
+    unverified.push({
+      document: 'mot',
+      reason: (driver.vehicle && driver.vehicle.mot && driver.vehicle.mot.rejectedReason) || 'Document not verified',
+    });
+  }
+
+  if (!driver.backgroundCheck || !driver.backgroundCheck.isVerified) {
+    unverified.push({
+      document: 'backgroundCheck',
+      reason: (driver.backgroundCheck && driver.backgroundCheck.rejectedReason) || 'Background check not verified',
+    });
+  }
+
+  return unverified;
+};
+
+const updateDriverStatus = async (driverId, action, reason = null) => {
+  const driver = await Driver.findById(driverId);
+  if (!driver) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
+  }
+
+  if (action === 'approve') {
+    if (!areAllDocumentsVerified(driver)) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        'Complete all document verifications and background check before approving the driver'
+      );
+    }
+    driver.status = 'approved';
+
+    // Send approval email
+    await emailService.sendDriverApprovalEmail(driver);
+  } else if (action === 'reject') {
+    driver.status = 'rejected';
+
+    // Get unverified documents and their reasons
+    const unverifiedDocuments = getUnverifiedDocuments(driver);
+
+    // Send rejection email with details
+    await emailService.sendDriverRejectionEmail(driver, unverifiedDocuments, reason);
+  }
+
+  await driver.save();
+  return driver;
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -370,4 +507,6 @@ module.exports = {
   refreshAuth,
   getAllDrivers,
   getDriverById,
+  verifyDocument,
+  updateDriverStatus,
 };
