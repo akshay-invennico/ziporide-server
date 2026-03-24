@@ -89,6 +89,15 @@ const getAllDrivers = catchAsync(async (req, res) => {
   });
 });
 
+const getDriverById = catchAsync(async (req, res) => {
+  const driver = await driverService.getDriverById(req.params.id);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Driver retrieved successfully',
+    data: { driver },
+  });
+});
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -99,4 +108,5 @@ module.exports = {
   refreshTokens,
   logout,
   getAllDrivers,
+  getDriverById,
 };

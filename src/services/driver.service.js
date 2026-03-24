@@ -302,6 +302,63 @@ const getAllDrivers = async (options) => {
   return drivers;
 };
 
+const getDriverById = async (driverId) => {
+  const driver = await Driver.findById(driverId);
+
+  if (!driver) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
+  }
+
+  // Remove sensitive fields
+  const driverObj = driver.toJSON();
+  delete driverObj.otp;
+  delete driverObj.otpExpiresAt;
+
+  // Get associated user data if exists
+  const user = await User.findOne({ phone: driver.phone }).select(
+    '-otp -otpExpiresAt -password -isAdmin -isAdultConfirmed -isPhoneVerified -isProfileCompleted -lastLoginAt -stripeCustomerId'
+  );
+
+  if (user) {
+    const userDetails = user.toJSON();
+    if (userDetails.name && !driverObj.name) {
+      driverObj.name = userDetails.name;
+    }
+    if (userDetails.email && !driverObj.email) {
+      driverObj.email = userDetails.email;
+    }
+    if (userDetails.gender && !driverObj.gender) {
+      driverObj.gender = userDetails.gender;
+    }
+    driverObj.userStatus = userDetails.status;
+    driverObj.userId = userDetails.id;
+  }
+
+  // Get earnings and trips data
+  const earningsPipeline = [
+    { $match: { driver: driver._id, status: 'completed' } },
+    {
+      $group: {
+        _id: '$driver',
+        totalEarnings: { $sum: '$fare.totalFare' },
+        totalTrips: { $sum: 1 },
+      },
+    },
+  ];
+
+  const earningsData = await Ride.aggregate(earningsPipeline);
+
+  if (earningsData.length > 0) {
+    driverObj.totalEarnings = earningsData[0].totalEarnings || 0;
+    driverObj.totalTrips = earningsData[0].totalTrips || 0;
+  } else {
+    driverObj.totalEarnings = 0;
+    driverObj.totalTrips = 0;
+  }
+
+  return driverObj;
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -312,4 +369,5 @@ module.exports = {
   logout,
   refreshAuth,
   getAllDrivers,
+  getDriverById,
 };

@@ -13,6 +13,7 @@ router.patch('/onboarding/vehicle', auth(), validate(driverValidation.updateVehi
 router.post('/refresh/tokens', validate(driverValidation.refreshTokens), driverController.refreshTokens);
 router.post('/logout', validate(driverValidation.logout), driverController.logout);
 router.get('/', auth(), validate(driverValidation.getAllDrivers), driverController.getAllDrivers);
+router.get('/:id', auth(), validate(driverValidation.getDriverById), driverController.getDriverById);
 
 module.exports = router;
 
@@ -393,4 +394,43 @@ router.post(
  *                       type: integer
  *       "401":
  *         $ref: '#/components/responses/Unauthorized'
+ */
+
+/**
+ * @swagger
+ * /driver/{id}:
+ *   get:
+ *     summary: Get driver by ID
+ *     tags: [Driver]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: '^[a-fA-F0-9]{24}$'
+ *         description: Driver ID (MongoDB ObjectId)
+ *     responses:
+ *       "200":
+ *         description: Driver retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     driver:
+ *                       $ref: '#/components/schemas/Driver'
+ *       "401":
+ *         $ref: '#/components/responses/Unauthorized'
+ *       "404":
+ *         $ref: '#/components/responses/NotFound'
  */
