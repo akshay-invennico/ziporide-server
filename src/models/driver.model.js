@@ -2,6 +2,16 @@ const mongoose = require('mongoose');
 const validator = require('validator');
 const { toJSON, paginate } = require('./plugins');
 
+const documentSchema = new mongoose.Schema(
+  {
+    url: String,
+    isVerified: { type: Boolean, default: false },
+    verifiedAt: Date,
+    rejectedReason: String,
+  },
+  { _id: false }
+);
+
 const addressSchema = new mongoose.Schema(
   {
     line1: { type: String, trim: true },
@@ -18,8 +28,7 @@ const licenceSchema = new mongoose.Schema(
     number: { type: String, trim: true },
     expiryDate: { type: Date },
     issuingAuthority: { type: String, trim: true },
-    documentUrl: { type: String },
-    isVerified: { type: Boolean, default: false },
+    document: documentSchema,
   },
   { _id: false }
 );
@@ -36,8 +45,8 @@ const vehicleSchema = new mongoose.Schema(
     model: { type: String, trim: true },
     year: { type: Number },
     colour: { type: String, trim: true },
-    insuranceCertificateUrl: { type: String },
-    motCertificateUrl: { type: String },
+    insurance: documentSchema,
+    mot: documentSchema,
   },
   { _id: false }
 );
@@ -102,6 +111,12 @@ const driverSchema = new mongoose.Schema(
     },
     consents: {
       type: consentsSchema,
+    },
+
+    backgroundCheck: {
+      isVerified: { type: Boolean, default: false },
+      verifiedAt: Date,
+      rejectedReason: String,
     },
 
     status: {

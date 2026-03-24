@@ -1,6 +1,6 @@
 const httpStatus = require('http-status');
 const moment = require('moment');
-const { Driver, Token } = require('../models');
+const { Driver, Token, User, Ride } = require('../models');
 const ApiError = require('../utils/ApiError');
 const twilioService = require('./twilio.service');
 const { tokenTypes } = require('../config/tokens');
@@ -63,7 +63,12 @@ const updateProfile = async (driverId, profileData) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
   }
 
-  Object.assign(driver, profileData);
+  const { profile, ...otherProfileData } = profileData;
+
+  Object.assign(driver, otherProfileData);
+  if (profile) {
+    driver.profilePhotoUrl = profile;
+  }
 
   if (driver.onboardingStep === 1) {
     driver.onboardingStep = 2; // Profile done, move to licence
@@ -79,7 +84,13 @@ const updateLicence = async (driverId, licenceData) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
   }
 
-  driver.licence = { ...driver.licence, ...licenceData };
+  const { documentUrl, ...otherLicenceData } = licenceData;
+
+  driver.licence = {
+    ...driver.licence,
+    ...otherLicenceData,
+    ...(documentUrl && { document: { url: documentUrl, isVerified: false } }),
+  };
 
   if (driver.onboardingStep === 2) {
     driver.onboardingStep = 3; // Licence done, move to vehicle
@@ -95,7 +106,14 @@ const updateVehicle = async (driverId, vehicleData) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
   }
 
-  driver.vehicle = { ...driver.vehicle, ...vehicleData };
+  const { insuranceCertificateUrl, motCertificateUrl, ...otherVehicleData } = vehicleData;
+
+  driver.vehicle = {
+    ...driver.vehicle,
+    ...otherVehicleData,
+    ...(insuranceCertificateUrl && { insurance: { url: insuranceCertificateUrl, isVerified: false } }),
+    ...(motCertificateUrl && { mot: { url: motCertificateUrl, isVerified: false } }),
+  };
 
   if (driver.onboardingStep === 3) {
     driver.onboardingStep = 4; // Vehicle done, move to consents
@@ -141,6 +159,149 @@ const refreshAuth = async (refreshToken) => {
   }
 };
 
+const getAllDrivers = async (options) => {
+  const {
+    page = 1,
+    limit = 10,
+    sortBy = 'createdAt',
+    sortOrder = 'desc',
+    status,
+    isOnline,
+    isSubscribed,
+    minEarnings,
+    maxEarnings,
+    minTrips,
+    maxTrips,
+    rating,
+  } = options;
+
+  const filter = {};
+
+  if (status) {
+    if (status === 'active') {
+      filter.status = 'approved';
+    } else {
+      filter.status = status;
+    }
+  }
+
+  if (isOnline !== undefined) {
+    filter.isOnline = isOnline === 'true';
+  }
+
+  if (isSubscribed !== undefined) {
+    filter.isSubscribed = isSubscribed === 'true';
+  }
+
+  // Rating filter
+
+  if (rating && rating !== 'all') {
+    let ratingThreshold;
+    if (rating === '5_and_above') {
+      ratingThreshold = 5;
+    } else if (rating === '4_and_above') {
+      ratingThreshold = 4;
+    } else {
+      ratingThreshold = 3;
+    }
+    filter.avgRating = { $gte: ratingThreshold };
+  }
+
+  const sortOptions = {};
+  sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+  const drivers = await Driver.paginate(filter, {
+    page,
+    limit,
+    sort: sortOptions,
+  });
+
+  if (drivers.results) {
+    const driverPhones = drivers.results.map((driver) => driver.phone);
+    const driverIds = drivers.results.map((driver) => driver._id);
+
+    const users = await User.find({
+      phone: { $in: driverPhones },
+    }).select(
+      '-otp -otpExpiresAt -password -isAdmin -isAdultConfirmed -isPhoneVerified -isProfileCompleted -lastLoginAt -stripeCustomerId'
+    );
+
+    const earningsPipeline = [
+      { $match: { driver: { $in: driverIds }, status: 'completed' } },
+      {
+        $group: {
+          _id: '$driver',
+          totalEarnings: { $sum: '$fare.totalFare' },
+          totalTrips: { $sum: 1 },
+        },
+      },
+    ];
+    const earningsData = await Ride.aggregate(earningsPipeline);
+
+    const earningsMap = {};
+    earningsData.forEach((data) => {
+      earningsMap[data._id.toString()] = {
+        totalEarnings: data.totalEarnings || 0,
+        totalTrips: data.totalTrips || 0,
+      };
+    });
+
+    let filteredDrivers = drivers.results;
+
+    if (minEarnings !== undefined || maxEarnings !== undefined || minTrips !== undefined || maxTrips !== undefined) {
+      filteredDrivers = drivers.results.filter((driver) => {
+        const driverEarnings = earningsMap[driver._id.toString()] || { totalEarnings: 0, totalTrips: 0 };
+
+        if (minEarnings !== undefined && driverEarnings.totalEarnings < minEarnings) return false;
+        if (maxEarnings !== undefined && driverEarnings.totalEarnings > maxEarnings) return false;
+        if (minTrips !== undefined && driverEarnings.totalTrips < minTrips) return false;
+        if (maxTrips !== undefined && driverEarnings.totalTrips > maxTrips) return false;
+
+        return true;
+      });
+    }
+
+    const userMap = {};
+    users.forEach((user) => {
+      userMap[user.phone] = user.toJSON();
+    });
+
+    drivers.results = filteredDrivers.map((driver) => {
+      const driverObj = driver.toJSON();
+      delete driverObj.otp;
+      delete driverObj.otpExpiresAt;
+
+      if (userMap[driver.phone]) {
+        const userDetails = userMap[driver.phone];
+
+        if (userDetails.name && !driverObj.name) {
+          driverObj.name = userDetails.name;
+        }
+        if (userDetails.email && !driverObj.email) {
+          driverObj.email = userDetails.email;
+        }
+        if (userDetails.gender && !driverObj.gender) {
+          driverObj.gender = userDetails.gender;
+        }
+
+        driverObj.userStatus = userDetails.status;
+        driverObj.userId = userDetails.id;
+      }
+
+      const earnings = earningsMap[driver._id.toString()] || { totalEarnings: 0, totalTrips: 0 };
+      driverObj.totalEarnings = earnings.totalEarnings;
+      driverObj.totalTrips = earnings.totalTrips;
+
+      return driverObj;
+    });
+
+    drivers.totalResults = filteredDrivers.length;
+    drivers.totalPages = Math.ceil(filteredDrivers.length / limit);
+  }
+
+  return drivers;
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -150,4 +311,5 @@ module.exports = {
   completeOnboarding,
   logout,
   refreshAuth,
+  getAllDrivers,
 };

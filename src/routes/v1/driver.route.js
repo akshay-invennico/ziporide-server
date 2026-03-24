@@ -12,6 +12,7 @@ router.patch('/onboarding/licence', auth(), validate(driverValidation.updateLice
 router.patch('/onboarding/vehicle', auth(), validate(driverValidation.updateVehicle), driverController.updateVehicle);
 router.post('/refresh/tokens', validate(driverValidation.refreshTokens), driverController.refreshTokens);
 router.post('/logout', validate(driverValidation.logout), driverController.logout);
+router.get('/', auth(), validate(driverValidation.getAllDrivers), driverController.getAllDrivers);
 
 module.exports = router;
 
@@ -305,4 +306,91 @@ router.post(
  *         description: Logged out successfully
  *       "404":
  *         $ref: '#/components/responses/NotFound'
+ */
+
+/**
+ * @swagger
+ * /driver:
+ *   get:
+ *     summary: Get all drivers with pagination and filtering
+ *     tags: [Driver]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *         description: Number of items per page
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, name, status, lastLoginAt, avgRating]
+ *           default: createdAt
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, approved, rejected, suspended]
+ *         description: Filter by driver status
+ *       - in: query
+ *         name: isOnline
+ *         schema:
+ *           type: string
+ *           enum: [true, false]
+ *         description: Filter by online status
+ *       - in: query
+ *         name: isSubscribed
+ *         schema:
+ *           type: string
+ *           enum: [true, false]
+ *         description: Filter by subscription status
+ *     responses:
+ *       "200":
+ *         description: Drivers retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     results:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Driver'
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     totalResults:
+ *                       type: integer
+ *       "401":
+ *         $ref: '#/components/responses/Unauthorized'
  */

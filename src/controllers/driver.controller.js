@@ -80,6 +80,15 @@ const logout = catchAsync(async (req, res) => {
   });
 });
 
+const getAllDrivers = catchAsync(async (req, res) => {
+  const drivers = await driverService.getAllDrivers(req.query);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Drivers retrieved successfully',
+    data: drivers,
+  });
+});
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -89,4 +98,5 @@ module.exports = {
   completeOnboarding,
   refreshTokens,
   logout,
+  getAllDrivers,
 };
