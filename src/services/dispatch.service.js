@@ -26,6 +26,7 @@
  */
 
 const { Ride, Driver } = require('../models');
+const mapboxService = require('./mapbox.service');
 const logger = require('../config/logger');
 
 const DISPATCH_TIMEOUT_MS = 15000; // 15 seconds per driver
@@ -86,7 +87,7 @@ const findNearbyDrivers = async (pickup, vehicleType) => {
  */
 const buildRidePayload = async (rideId) => {
   return Ride.findById(rideId)
-    .populate('rider', 'name phone profilePhotoUrl')
+    .populate('rider', 'name phone profile')
     .lean();
 };
 
@@ -238,11 +239,24 @@ const handleDriverAccept = async (io, rideId, driverId) => {
     },
     { new: true }
   )
-    .populate('rider', 'name phone profilePhotoUrl')
-    .populate('driver', 'name phone vehicle profilePhotoUrl currentLocation');
+    .populate('rider', 'name phone profile')
+    .populate('driver', 'name phone vehicle profilePhotoUrl currentLocation avgRating totalRatings');
 
   if (!updatedRide) {
     return { success: false, message: 'Ride not found' };
+  }
+
+  // Calculate ETA from driver's current location to pickup
+  let eta = null;
+  if (updatedRide.driver?.currentLocation?.coordinates?.length === 2) {
+    try {
+      eta = await mapboxService.getETA(
+        updatedRide.driver.currentLocation.coordinates,
+        updatedRide.pickup.coordinates
+      );
+    } catch (err) {
+      logger.error(`Failed to get ETA for ride ${rideId}: ${err.message}`);
+    }
   }
 
   // Notify the rider that their driver is confirmed
@@ -255,7 +269,10 @@ const handleDriverAccept = async (io, rideId, driverId) => {
       profilePhotoUrl: updatedRide.driver.profilePhotoUrl,
       vehicle: updatedRide.driver.vehicle,
       currentLocation: updatedRide.driver.currentLocation,
+      avgRating: updatedRide.driver.avgRating,
+      totalRatings: updatedRide.driver.totalRatings,
     },
+    eta,
     message: 'A driver has accepted your ride and is on the way!',
   });
 

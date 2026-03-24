@@ -24,6 +24,7 @@
 const { Driver, Ride } = require('../../models');
 const dispatchService = require('../../services/dispatch.service');
 const rideService = require('../../services/ride.service');
+const mapboxService = require('../../services/mapbox.service');
 const logger = require('../../config/logger');
 
 const setupDriverHandlers = (io, socket) => {
@@ -153,9 +154,23 @@ const setupDriverHandlers = (io, socket) => {
       }).lean();
 
       if (activeRide) {
+        // Calculate ETA from driver's current location to pickup (if driver hasn't arrived yet)
+        let eta = null;
+        if (['driver_allocated'].includes(activeRide.status)) {
+          try {
+            eta = await mapboxService.getETA(
+              [longitude, latitude],
+              activeRide.pickup.coordinates
+            );
+          } catch (err) {
+            logger.error(`ETA calculation failed for ride ${activeRide._id}: ${err.message}`);
+          }
+        }
+
         io.to(`user:${activeRide.rider.toString()}`).emit('ride:driver_location', {
           rideId: activeRide._id,
           location: { latitude, longitude },
+          eta,
         });
       }
 

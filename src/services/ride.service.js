@@ -1,5 +1,5 @@
 const httpStatus = require('http-status');
-const { Ride } = require('../models');
+const { Ride, Driver } = require('../models');
 const VehicleCategory = require('../models/inventory.model');
 const Pricing = require('../models/pricing.model');
 const ApiError = require('../utils/ApiError');
@@ -7,6 +7,8 @@ const dispatchService = require('./dispatch.service');
 const mapboxService = require('./mapbox.service');
 const paymentService = require('./payment.service');
 const logger = require('../config/logger');
+
+const NEARBY_DRIVERS_RADIUS_METERS = 10000; // 10 km
 
 /** Generate a 4-digit pickup OTP for driver verification at pickup point. */
 const generatePickupOtp = () => Math.floor(1000 + Math.random() * 9000).toString();
@@ -122,8 +124,8 @@ const createRide = async (riderId, rideData) => {
  */
 const getRideById = async (rideId, requesterId, requesterRole = 'rider') => {
   const ride = await Ride.findById(rideId)
-    .populate('rider',  'name phone profilePhotoUrl')
-    .populate('driver', 'name phone vehicle profilePhotoUrl currentLocation');
+    .populate('rider', 'name phone profile')
+    .populate('driver', 'name phone vehicle profilePhotoUrl currentLocation avgRating totalRatings');
 
   if (!ride) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
@@ -146,9 +148,9 @@ const getRideById = async (rideId, requesterId, requesterRole = 'rider') => {
 const getRidesByRider = async (riderId, filter = {}, options = {}) => {
   const query = { rider: riderId, ...filter };
   return Ride.paginate(query, {
-    page:    options.page    || 1,
-    limit:   options.limit   || 10,
-    sortBy:  options.sortBy  || 'createdAt:desc',
+    page: options.page || 1,
+    limit: options.limit || 10,
+    sortBy: options.sortBy || 'createdAt:desc',
     populate: 'driver',
   });
 };
@@ -216,8 +218,8 @@ const cancelRide = async (rideId, riderId, cancellationData) => {
 const getRidesByDriver = async (driverId, filter = {}, options = {}) => {
   const query = { driver: driverId, ...filter };
   return Ride.paginate(query, {
-    page:   options.page   || 1,
-    limit:  options.limit  || 10,
+    page: options.page || 1,
+    limit: options.limit || 10,
     sortBy: options.sortBy || 'createdAt:desc',
     populate: 'rider',
   });
@@ -232,7 +234,7 @@ const getCurrentRideForDriver = async (driverId) => {
     driver: driverId,
     status: { $in: ['driver_allocated', 'driver_arrived', 'in_progress'] },
   })
-    .populate('rider', 'name phone profilePhotoUrl')
+    .populate('rider', 'name phone profile')
     .sort({ createdAt: -1 });
 
   return ride || null;
@@ -424,15 +426,125 @@ const cancelRideByDriver = async (rideId, driverId, cancellationData) => {
   return ride;
 };
 
+/**
+ * Get the rider's current active ride (if any).
+ * Useful when the rider app restarts and needs to restore the ride screen.
+ */
+const getCurrentRideForRider = async (riderId) => {
+  const ride = await Ride.findOne({
+    rider: riderId,
+    status: { $in: ['searching', 'driver_allocated', 'driver_arrived', 'in_progress'] },
+  })
+    .populate('driver', 'name phone profilePhotoUrl vehicle currentLocation avgRating totalRatings')
+    .populate('category', 'name vehicleType seatCapacity')
+    .sort({ createdAt: -1 });
+
+  if (!ride) return null;
+
+  // If a driver is assigned, calculate ETA from driver's location to pickup
+  let eta = null;
+  if (
+    ride.driver?.currentLocation?.coordinates?.length === 2 &&
+    ['driver_allocated', 'driver_arrived'].includes(ride.status)
+  ) {
+    try {
+      eta = await mapboxService.getETA(ride.driver.currentLocation.coordinates, ride.pickup.coordinates);
+    } catch (err) {
+      logger.error(`Failed to get ETA for ride ${ride._id}: ${err.message}`);
+    }
+  }
+
+  return { ride, eta };
+};
+
+/**
+ * Retry dispatch for a ride that has status 'no_drivers'.
+ * Resets the ride back to 'searching' and kicks off a new dispatch.
+ */
+const retryDispatch = async (rideId, riderId) => {
+  const ride = await Ride.findById(rideId);
+
+  if (!ride) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
+  }
+  if (ride.rider.toString() !== riderId.toString()) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You are not authorised to retry this ride');
+  }
+  if (ride.status !== 'no_drivers') {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      `Retry is only allowed when no drivers were found (current status: '${ride.status}')`
+    );
+  }
+
+  ride.status = 'searching';
+  await ride.save();
+
+  // Fire-and-forget new dispatch
+  setImmediate(async () => {
+    try {
+      const { getIO } = require('../socket');
+      await dispatchService.startDispatch(getIO(), ride);
+    } catch (err) {
+      logger.error(`Retry dispatch failed for ride ${rideId}: ${err.message}`);
+    }
+  });
+
+  return ride;
+};
+
+/**
+ * Get nearby online drivers for map display.
+ * Returns driver locations (no ride assignment — just for the searching screen map).
+ */
+const getNearbyDrivers = async (latitude, longitude, vehicleType) => {
+  const query = {
+    isOnline: true,
+    status: 'approved',
+    currentLocation: {
+      $nearSphere: {
+        $geometry: {
+          type: 'Point',
+          coordinates: [longitude, latitude],
+        },
+        $maxDistance: NEARBY_DRIVERS_RADIUS_METERS,
+      },
+    },
+  };
+
+  if (vehicleType) {
+    query['vehicle.type'] = vehicleType;
+  }
+
+  const drivers = await Driver.find(query)
+    .select('currentLocation vehicle.type vehicle.make vehicle.model')
+    .limit(20)
+    .lean();
+
+  return drivers.map((d) => ({
+    id: d._id,
+    location: {
+      latitude: d.currentLocation.coordinates[1],
+      longitude: d.currentLocation.coordinates[0],
+    },
+    vehicleType: d.vehicle?.type,
+    vehicleMake: d.vehicle?.make,
+    vehicleModel: d.vehicle?.model,
+  }));
+};
+
 module.exports = {
   createRide,
   getRideById,
   getRidesByRider,
   getRidesByDriver,
   getCurrentRideForDriver,
+  getCurrentRideForRider,
   cancelRide,
   driverArrived,
   verifyOtpAndStartRide,
   completeRide,
   cancelRideByDriver,
+  retryDispatch,
+  getNearbyDrivers,
 };

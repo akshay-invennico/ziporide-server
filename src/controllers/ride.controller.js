@@ -50,10 +50,41 @@ const cancelRide = catchAsync(async (req, res) => {
   });
 });
 
+const getCurrentRide = catchAsync(async (req, res) => {
+  const result = await rideService.getCurrentRideForRider(req.user.id);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: result ? 'Active ride found' : 'No active ride',
+    data: result || { ride: null, eta: null },
+  });
+});
+
+const retryDispatch = catchAsync(async (req, res) => {
+  const ride = await rideService.retryDispatch(req.params.rideId, req.user.id);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Searching for drivers again',
+    data: { ride },
+  });
+});
+
+const getNearbyDrivers = catchAsync(async (req, res) => {
+  const { latitude, longitude, vehicleType } = req.body;
+  const drivers = await rideService.getNearbyDrivers(latitude, longitude, vehicleType);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: `${drivers.length} driver(s) found nearby`,
+    data: { drivers },
+  });
+});
+
 module.exports = {
   getRideOptions,
   createRide,
   getRides,
   getRide,
   cancelRide,
+  getCurrentRide,
+  retryDispatch,
+  getNearbyDrivers,
 };

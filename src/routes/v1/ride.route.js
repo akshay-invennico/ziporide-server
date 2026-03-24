@@ -16,6 +16,20 @@ router.use(auth());
 router.post('/options', validate(rideValidation.getRideOptions), rideController.getRideOptions);
 
 /**
+ * @route   POST /v1/ride/nearby-drivers
+ * @desc    Get nearby online drivers for map display (searching screen)
+ * @access  Private (rider)
+ */
+router.post('/nearby/drivers', validate(rideValidation.getNearbyDrivers), rideController.getNearbyDrivers);
+
+/**
+ * @route   GET /v1/ride/current
+ * @desc    Get the rider's current active ride (for restoring app state)
+ * @access  Private (rider)
+ */
+router.get('/current', rideController.getCurrentRide);
+
+/**
  * @route   POST /v1/ride
  * @desc    Create new ride request
  * @access  Private (rider)
@@ -35,6 +49,13 @@ router.get('/', validate(rideValidation.getRides), rideController.getRides);
  * @access  Private (rider)
  */
 router.get('/:rideId', validate(rideValidation.getRide), rideController.getRide);
+
+/**
+ * @route   POST /v1/ride/:rideId/retry
+ * @desc    Retry dispatch when no drivers were found (Try Again button)
+ * @access  Private (rider)
+ */
+router.post('/:rideId/retry', validate(rideValidation.retryDispatch), rideController.retryDispatch);
 
 /**
  * @route   POST /v1/ride/:rideId/cancel

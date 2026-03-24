@@ -38,11 +38,15 @@ const cancelRide = {
     reason: Joi.string()
       .valid(
         'taking_too_long',
+        'driver_taking_too_long',
         'wrong_location',
+        'incorrect_pickup_location',
         'changed_mind',
         'found_another_ride',
         'ordered_by_mistake',
         'driver_not_moving',
+        'driver_asked_to_cancel',
+        'safety_concerns',
         'other'
       )
       .required(),
@@ -131,11 +135,15 @@ const driverCancelRide = {
     reason: Joi.string()
       .valid(
         'taking_too_long',
+        'driver_taking_too_long',
         'wrong_location',
+        'incorrect_pickup_location',
         'changed_mind',
         'found_another_ride',
         'ordered_by_mistake',
         'driver_not_moving',
+        'driver_asked_to_cancel',
+        'safety_concerns',
         'other'
       )
       .required(),
@@ -150,12 +158,28 @@ const driverCancelRide = {
   }),
 };
 
+const retryDispatch = {
+  params: Joi.object().keys({
+    rideId: Joi.string().required(),
+  }),
+};
+
+const getNearbyDrivers = {
+  body: Joi.object().keys({
+    latitude: Joi.number().min(-90).max(90).required(),
+    longitude: Joi.number().min(-180).max(180).required(),
+    vehicleType: Joi.string().valid('car', 'bike', 'van', 'electric', 'standard', 'xl', 'executive').optional(),
+  }),
+};
+
 module.exports = {
   createRide,
   getRideOptions,
   cancelRide,
   getRide,
   getRides,
+  retryDispatch,
+  getNearbyDrivers,
   acceptRide,
   declineRide,
   getDriverRides,
