@@ -24,12 +24,18 @@ if (config.env !== 'test') {
 // set security HTTP headers
 app.use(helmet());
 
-// stripe webhooks
+// stripe webhooks — must receive raw body for signature verification
 app.use('/v1/driver/subscription/webhook', express.raw({ type: 'application/json' }));
 app.use('/v1/driver/account/webhook', express.raw({ type: 'application/json' }));
 
-// parse json request body
-app.use(express.json());
+// parse json request body — skip webhook routes (they need raw body)
+const webhookPaths = ['/v1/driver/subscription/webhook', '/v1/driver/account/webhook'];
+app.use((req, res, next) => {
+  if (webhookPaths.includes(req.originalUrl)) {
+    return next();
+  }
+  express.json()(req, res, next);
+});
 
 // parse urlencoded request body
 app.use(express.urlencoded({ extended: true }));

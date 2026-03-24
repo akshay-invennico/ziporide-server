@@ -62,6 +62,31 @@ const findNearbyDrivers = async (pickup, vehicleType) => {
     status: { $in: ['driver_allocated', 'driver_arrived', 'in_progress'] },
   });
 
+  // Debug: log all online drivers and why they might be excluded
+  const allOnlineDrivers = await Driver.find({ isOnline: true }).select(
+    'name isOnline status isSubscribed isBankLinked vehicle.type currentLocation'
+  ).lean();
+
+  if (allOnlineDrivers.length === 0) {
+    logger.info('Dispatch debug: No online drivers found at all');
+  } else {
+    allOnlineDrivers.forEach((d) => {
+      const reasons = [];
+      if (d.status !== 'approved') reasons.push(`status=${d.status} (need approved)`);
+      if (!d.isSubscribed) reasons.push('isSubscribed=false');
+      if (!d.isBankLinked) reasons.push('isBankLinked=false');
+      if (d.vehicle?.type !== vehicleType) reasons.push(`vehicle.type=${d.vehicle?.type} (need ${vehicleType})`);
+      if (!d.currentLocation?.coordinates) reasons.push('no currentLocation set');
+      if (busyDrivers.some((id) => id.toString() === d._id.toString())) reasons.push('already on active ride');
+
+      if (reasons.length > 0) {
+        logger.info(`Dispatch debug: Driver ${d.name || d._id} EXCLUDED — ${reasons.join(', ')}`);
+      } else {
+        logger.info(`Dispatch debug: Driver ${d.name || d._id} is ELIGIBLE — will check distance`);
+      }
+    });
+  }
+
   return Driver.find({
     isOnline: true,
     status: 'approved',
