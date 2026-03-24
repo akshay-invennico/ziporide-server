@@ -59,7 +59,7 @@ const verifyOtp = async (phone, countryCode, otp) => {
   }
 
   if (!user.isOtpValid(otp)) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid or expired OTP');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid or expired OTP');
   }
 
   user.isPhoneVerified = true;
@@ -132,7 +132,7 @@ const adminLogin = async (email, password) => {
   const user = await User.findOne({ email }).select('+password');
 
   if (!user) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Incorrect email or password');
   }
 
   if (!user.isAdminUser()) {
@@ -144,7 +144,7 @@ const adminLogin = async (email, password) => {
   }
 
   if (!(await user.isPasswordMatch(password))) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Incorrect email or password');
   }
 
   user.lastLoginAt = new Date();
@@ -214,7 +214,7 @@ const verifyOtpEmail = async (email, otp) => {
   }
 
   if (!user.isOtpValid(otp)) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid or expired OTP');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid or expired OTP');
   }
 
   user.isPhoneVerified = true;

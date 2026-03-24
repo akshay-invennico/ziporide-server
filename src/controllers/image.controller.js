@@ -10,8 +10,9 @@ const uploadImages = catchAsync(async (req, res) => {
   const urls = req.files.map((file) => file.location);
 
   res.status(httpStatus.CREATED).send({
+    success: true,
     message: 'Images uploaded successfully',
-    images: urls,
+    data: { images: urls },
   });
 });
 

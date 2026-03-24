@@ -41,7 +41,7 @@ const verifyOtp = async (phone, countryCode, otp) => {
   }
 
   if (!driver.isOtpValid(otp)) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid or expired OTP');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid or expired OTP');
   }
 
   driver.isPhoneVerified = true;
