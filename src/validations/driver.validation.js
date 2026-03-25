@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const { objectId } = require('./custom.validation');
 
 const sendOtp = {
   body: Joi.object().keys({
@@ -43,7 +44,7 @@ const updateLicence = {
 
 const updateVehicle = {
   body: Joi.object().keys({
-    type: Joi.string().valid('electric', 'standard', 'xl').required(),
+    vehicleCategory: Joi.string().custom(objectId).required(),
     registrationNumber: Joi.string().required(),
     make: Joi.string().required(),
     model: Joi.string().required(),
@@ -52,7 +53,7 @@ const updateVehicle = {
       .min(1900)
       .max(new Date().getFullYear() + 1)
       .required(),
-    colour: Joi.string().allow('', null).optional(), // added colour just in case, though might not be in UI, skipped in reqs, but safe
+    colour: Joi.string().allow('', null).optional(),
     insuranceCertificateUrl: Joi.string().uri().required(),
     motCertificateUrl: Joi.string().uri().required(),
   }),

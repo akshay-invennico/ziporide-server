@@ -1,6 +1,6 @@
 const httpStatus = require('http-status');
 const moment = require('moment');
-const { Driver, Token, User, Ride } = require('../models');
+const { Driver, Token, User, Ride, VehicleCategory } = require('../models');
 const ApiError = require('../utils/ApiError');
 const twilioService = require('./twilio.service');
 const { tokenTypes } = require('../config/tokens');
@@ -107,11 +107,19 @@ const updateVehicle = async (driverId, vehicleData) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
   }
 
-  const { insuranceCertificateUrl, motCertificateUrl, ...otherVehicleData } = vehicleData;
+  // Validate vehicle category against admin-created categories
+  const { vehicleCategory: categoryId, insuranceCertificateUrl, motCertificateUrl, ...otherVehicleData } = vehicleData;
+
+  const category = await VehicleCategory.findOne({ _id: categoryId, isActive: true });
+  if (!category) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid or inactive vehicle category');
+  }
 
   driver.vehicle = {
     ...driver.vehicle,
     ...otherVehicleData,
+    category: category._id,
+    type: category.vehicleType.toLowerCase(),
     ...(insuranceCertificateUrl && { insurance: { url: insuranceCertificateUrl, isVerified: false } }),
     ...(motCertificateUrl && { mot: { url: motCertificateUrl, isVerified: false } }),
   };
@@ -475,6 +483,14 @@ const updateDriverStatus = async (driverId, action, reason = null) => {
   return driver;
 };
 
+const getVehicleTypes = async () => {
+  const categories = await VehicleCategory.find({ isActive: true })
+    .select('name vehicleType seatCapacity categoryIcon')
+    .sort({ name: 1 })
+    .lean();
+  return categories;
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -488,4 +504,5 @@ module.exports = {
   getDriverById,
   verifyDocument,
   updateDriverStatus,
+  getVehicleTypes,
 };

@@ -168,7 +168,7 @@ const getNearbyDrivers = {
   body: Joi.object().keys({
     latitude: Joi.number().min(-90).max(90).required(),
     longitude: Joi.number().min(-180).max(180).required(),
-    vehicleType: Joi.string().valid('car', 'bike', 'van', 'electric', 'standard', 'xl', 'executive').optional(),
+    vehicleType: Joi.string().trim().optional(),
   }),
 };
 

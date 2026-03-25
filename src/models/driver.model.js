@@ -35,10 +35,14 @@ const licenceSchema = new mongoose.Schema(
 
 const vehicleSchema = new mongoose.Schema(
   {
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'VehicleCategory',
+    },
     type: {
       type: String,
-      enum: ['electric', 'standard', 'xl', 'executive'],
-      default: 'standard',
+      trim: true,
+      lowercase: true,
     },
     registrationNumber: { type: String, trim: true, uppercase: true },
     make: { type: String, trim: true },
