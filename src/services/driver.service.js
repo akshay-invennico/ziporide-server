@@ -314,26 +314,7 @@ const getDriverById = async (driverId) => {
   const driverObj = driver.toJSON();
   delete driverObj.otp;
   delete driverObj.otpExpiresAt;
-
-  // Get associated user data if exists
-  const user = await User.findOne({ phone: driver.phone }).select(
-    '-otp -otpExpiresAt -password -isAdmin -isAdultConfirmed -isPhoneVerified -isProfileCompleted -lastLoginAt -stripeCustomerId'
-  );
-
-  if (user) {
-    const userDetails = user.toJSON();
-    if (userDetails.name && !driverObj.name) {
-      driverObj.name = userDetails.name;
-    }
-    if (userDetails.email && !driverObj.email) {
-      driverObj.email = userDetails.email;
-    }
-    if (userDetails.gender && !driverObj.gender) {
-      driverObj.gender = userDetails.gender;
-    }
-    driverObj.userStatus = userDetails.status;
-    driverObj.userId = userDetails.id;
-  }
+  driverObj.createdAt = driver.createdAt;
 
   // Get earnings and trips data
   const earningsPipeline = [
@@ -380,30 +361,28 @@ const verifyDocument = async (driverId, documentType, rejectedReason = null) => 
     case 'licence':
       driver.licence.document.isVerified = updateData.isVerified;
       driver.licence.document.verifiedAt = updateData.verifiedAt;
-      if (updateData.rejectedReason !== undefined) {
-        driver.licence.document.rejectedReason = updateData.rejectedReason;
-      }
+
+      driver.licence.document.rejectedReason = updateData.rejectedReason;
+
       break;
     case 'insurance':
       driver.vehicle.insurance.isVerified = updateData.isVerified;
       driver.vehicle.insurance.verifiedAt = updateData.verifiedAt;
-      if (updateData.rejectedReason !== undefined) {
-        driver.vehicle.insurance.rejectedReason = updateData.rejectedReason;
-      }
+
+      driver.vehicle.insurance.rejectedReason = updateData.rejectedReason;
+
       break;
     case 'mot':
       driver.vehicle.mot.isVerified = updateData.isVerified;
       driver.vehicle.mot.verifiedAt = updateData.verifiedAt;
-      if (updateData.rejectedReason !== undefined) {
-        driver.vehicle.mot.rejectedReason = updateData.rejectedReason;
-      }
+
+      driver.vehicle.mot.rejectedReason = updateData.rejectedReason;
       break;
     case 'backgroundCheck':
       driver.backgroundCheck.isVerified = updateData.isVerified;
       driver.backgroundCheck.verifiedAt = updateData.verifiedAt;
-      if (updateData.rejectedReason !== undefined) {
-        driver.backgroundCheck.rejectedReason = updateData.rejectedReason;
-      }
+
+      driver.backgroundCheck.rejectedReason = updateData.rejectedReason;
       break;
     default:
       throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid document type');
