@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { userService } = require('../services');
+const pick = require('../utils/pick');
 
 const getMe = catchAsync(async (req, res) => {
   const { user } = req;
@@ -55,10 +56,24 @@ const updatePassword = catchAsync(async (req, res) => {
   });
 });
 
+const getUsers = catchAsync(async (req, res) => {
+  const filter = {
+    ...pick(req.query, ['status', 'rating', 'minSpend', 'maxSpend', 'minTrips', 'maxTrips']),
+  };
+  const options = pick(req.query, ['sortBy', 'limit', 'page']);
+  const result = await userService.queryUsers(filter, options);
+  res.send({
+    success: true,
+    message: 'Users retrieved successfully',
+    data: result,
+  });
+});
+
 module.exports = {
   getMe,
   getUser,
   updateUser,
   deleteUser,
   updatePassword,
+  getUsers,
 };

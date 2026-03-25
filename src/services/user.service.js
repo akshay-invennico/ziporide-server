@@ -74,10 +74,155 @@ const updatePassword = async (userId, currentPassword, newPassword) => {
   return userWithoutPassword;
 };
 
+const queryUsers = async (filter, options) => {
+  const query = { isAdmin: false };
+
+  // Status filter
+  if (filter.status) {
+    query.status = filter.status;
+  }
+
+  // Build aggregation pipeline for complex filters
+  const pipeline = [];
+  let hasComplexFilters = false;
+
+  // Rating filter
+  if (filter.rating) {
+    hasComplexFilters = true;
+    const ratingMatch = {};
+    if (filter.rating === '5') {
+      ratingMatch.$expr = { $eq: ['$avgRating', 5] };
+    } else if (filter.rating === '4') {
+      ratingMatch.$expr = { $gte: ['$avgRating', 4] };
+    } else if (filter.rating === '3') {
+      ratingMatch.$expr = { $gte: ['$avgRating', 3] };
+    }
+
+    if (Object.keys(ratingMatch).length > 0) {
+      pipeline.push({
+        $lookup: {
+          from: 'ratings',
+          let: { userId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$rider', '$$userId'] } } },
+            { $group: { _id: '$rider', avgRating: { $avg: '$stars' }, totalRatings: { $sum: 1 } } },
+          ],
+          as: 'ratingData',
+        },
+      });
+      pipeline.push({
+        $addFields: {
+          avgRating: { $ifNull: [{ $arrayElemAt: ['$ratingData.avgRating', 0] }, 0] },
+          totalRatings: { $ifNull: [{ $arrayElemAt: ['$ratingData.totalRatings', 0] }, 0] },
+        },
+      });
+      pipeline.push({ $match: ratingMatch });
+    }
+  }
+
+  // Spend range filter
+  if (filter.minSpend || filter.maxSpend) {
+    hasComplexFilters = true;
+    pipeline.push({
+      $lookup: {
+        from: 'rides',
+        let: { userId: '$_id' },
+        pipeline: [
+          { $match: { $expr: { $eq: ['$rider', '$$userId'] }, status: 'completed' } },
+          { $group: { _id: '$rider', totalSpent: { $sum: '$fare.totalFare' } } },
+        ],
+        as: 'spendData',
+      },
+    });
+    pipeline.push({
+      $addFields: {
+        totalSpent: { $ifNull: [{ $arrayElemAt: ['$spendData.totalSpent', 0] }, 0] },
+      },
+    });
+
+    if (filter.minSpend) {
+      pipeline.push({ $match: { totalSpent: { $gte: parseFloat(filter.minSpend) } } });
+    }
+    if (filter.maxSpend) {
+      pipeline.push({ $match: { totalSpent: { $lte: parseFloat(filter.maxSpend) } } });
+    }
+  }
+
+  // Trip range filter
+  if (filter.minTrips || filter.maxTrips) {
+    hasComplexFilters = true;
+    pipeline.push({
+      $lookup: {
+        from: 'rides',
+        let: { userId: '$_id' },
+        pipeline: [{ $match: { $expr: { $eq: ['$rider', '$$userId'] }, status: 'completed' } }, { $count: 'tripCount' }],
+        as: 'tripData',
+      },
+    });
+    pipeline.push({
+      $addFields: {
+        totalTrips: { $ifNull: [{ $arrayElemAt: ['$tripData.tripCount', 0] }, 0] },
+      },
+    });
+
+    if (filter.minTrips) {
+      pipeline.push({ $match: { totalTrips: { $gte: parseInt(filter.minTrips, 10) } } });
+    }
+    if (filter.maxTrips) {
+      pipeline.push({ $match: { totalTrips: { $lte: parseInt(filter.maxTrips, 10) } } });
+    }
+  }
+
+  // Apply base query and aggregation
+  if (hasComplexFilters) {
+    pipeline.unshift({ $match: query });
+
+    // Create count pipeline (same as main pipeline but without pagination)
+    const countPipeline = [...pipeline];
+    const lastSortIndex = countPipeline.findIndex((stage) => stage.$sort);
+    if (lastSortIndex !== -1) {
+      countPipeline.splice(lastSortIndex);
+    }
+    countPipeline.push({ $count: 'total' });
+
+    // Add sorting to main pipeline
+    if (options.sortBy) {
+      const [field, order] = options.sortBy.split(':');
+      pipeline.push({ $sort: { [field]: order === 'desc' ? -1 : 1 } });
+    } else {
+      pipeline.push({ $sort: { createdAt: -1 } });
+    }
+
+    // Add pagination
+    const page = parseInt(options.page, 10) || 1;
+    const limit = parseInt(options.limit, 10) || 10;
+    const skip = (page - 1) * limit;
+
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
+
+    // Execute both queries in parallel
+    const [results, countResult] = await Promise.all([User.aggregate(pipeline), User.aggregate(countPipeline)]);
+
+    const totalResults = countResult.length > 0 ? countResult[0].total : 0;
+
+    return {
+      results,
+      page,
+      limit,
+      totalPages: Math.ceil(totalResults / limit),
+      totalResults,
+    };
+  }
+
+  return User.paginate(query, options);
+};
+
 module.exports = {
   getUserById,
   getUserByPhone,
   updateUserById,
   deleteUserById,
   updatePassword,
+  queryUsers,
 };
