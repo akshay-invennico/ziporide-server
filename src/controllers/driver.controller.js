@@ -80,6 +80,54 @@ const logout = catchAsync(async (req, res) => {
   });
 });
 
+const getAllDrivers = catchAsync(async (req, res) => {
+  const drivers = await driverService.getAllDrivers(req.query);
+  res.status(httpStatus.OK).send({
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Drivers retrieved successfully',
+    data: drivers,
+  });
+});
+
+const getDriverById = catchAsync(async (req, res) => {
+  const driver = await driverService.getDriverById(req.params.id);
+  res.status(httpStatus.OK).send({
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Driver retrieved successfully',
+    data: { driver },
+  });
+});
+
+const verifyDocument = catchAsync(async (req, res) => {
+  const { id, documentType } = req.params;
+  const { rejectedReason } = req.body;
+
+  await driverService.verifyDocument(id, documentType, rejectedReason);
+
+  const action = rejectedReason ? 'rejected' : 'verified';
+  res.status(httpStatus.OK).send({
+    success: true,
+    statusCode: httpStatus.OK,
+    message: `Document ${action} successfully`,
+  });
+});
+
+const updateDriverStatus = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { action, reason } = req.body;
+
+  await driverService.updateDriverStatus(id, action, reason);
+
+  const message = action === 'approve' ? 'Driver approved successfully' : 'Driver rejected successfully';
+  res.status(httpStatus.OK).send({
+    success: true,
+    statusCode: httpStatus.OK,
+    message,
+  });
+});
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -89,4 +137,8 @@ module.exports = {
   completeOnboarding,
   refreshTokens,
   logout,
+  getAllDrivers,
+  getDriverById,
+  verifyDocument,
+  updateDriverStatus,
 };

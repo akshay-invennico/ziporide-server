@@ -60,6 +60,7 @@ const adminLogin = catchAsync(async (req, res) => {
   const tokens = await tokenService.generateAuthTokens(user);
   res.status(httpStatus.OK).send({
     success: true,
+    statusCode: httpStatus.OK,
     message: 'Admin login successful',
     data: {
       user,
@@ -73,6 +74,7 @@ const forgotPassword = catchAsync(async (req, res) => {
   await authService.forgotPassword(email);
   res.status(httpStatus.OK).send({
     success: true,
+    statusCode: httpStatus.OK,
     message: 'Password reset OTP sent to your email',
   });
 });
@@ -82,6 +84,7 @@ const resetPassword = catchAsync(async (req, res) => {
   await authService.resetPassword(email, newPassword);
   res.status(httpStatus.OK).send({
     success: true,
+    statusCode: httpStatus.OK,
     message: 'Password reset successful',
   });
 });
@@ -91,6 +94,7 @@ const verifyOtpEmail = catchAsync(async (req, res) => {
   await authService.verifyOtpEmail(email, otp);
   res.status(httpStatus.OK).send({
     success: true,
+    statusCode: httpStatus.OK,
     message: 'OTP verified successfully',
   });
 });

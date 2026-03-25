@@ -78,6 +78,49 @@ const logout = {
   }),
 };
 
+const getAllDrivers = {
+  query: Joi.object().keys({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(10),
+    sortBy: Joi.string().valid('createdAt', 'name', 'status', 'lastLoginAt', 'avgRating').default('createdAt'),
+    sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
+    status: Joi.string().valid('pending', 'approved', 'rejected', 'suspended', 'active'),
+    isOnline: Joi.string().valid('true', 'false'),
+    isSubscribed: Joi.string().valid('true', 'false'),
+    minEarnings: Joi.number().min(0).optional(),
+    maxEarnings: Joi.number().min(0).optional(),
+    minTrips: Joi.number().min(0).optional(),
+    maxTrips: Joi.number().min(0).optional(),
+    rating: Joi.string().valid('5_and_above', '4_and_above', '3_and_above'),
+  }),
+};
+
+const getDriverById = {
+  params: Joi.object().keys({
+    id: Joi.string().required().hex().length(24),
+  }),
+};
+
+const verifyDocument = {
+  params: Joi.object().keys({
+    id: Joi.string().required().hex().length(24),
+    documentType: Joi.string().valid('licence', 'insurance', 'mot', 'backgroundCheck').required(),
+  }),
+  body: Joi.object().optional().keys({
+    rejectedReason: Joi.string().optional(),
+  }),
+};
+
+const updateDriverStatus = {
+  params: Joi.object().keys({
+    id: Joi.string().required().hex().length(24),
+  }),
+  body: Joi.object().keys({
+    action: Joi.string().valid('approve', 'reject').required(),
+    reason: Joi.string().optional(),
+  }),
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -87,4 +130,8 @@ module.exports = {
   completeOnboarding,
   refreshTokens,
   logout,
+  getAllDrivers,
+  getDriverById,
+  verifyDocument,
+  updateDriverStatus,
 };

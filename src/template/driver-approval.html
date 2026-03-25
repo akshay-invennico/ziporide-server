@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ZipoRide - Application Approved</title>
+
+    <style>
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f6f8;
+        color: #333;
+      }
+
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      .header {
+        background-color: #1e7e34;
+        padding: 20px;
+        text-align: center;
+      }
+
+      .header h1 {
+        margin: 0;
+        color: #ffffff;
+        font-size: 22px;
+        font-weight: 600;
+      }
+
+      .content {
+        padding: 30px;
+      }
+
+      h2 {
+        margin-top: 0;
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      p {
+        margin: 10px 0;
+        font-size: 15px;
+      }
+
+      .status-box {
+        background-color: #e6f4ea;
+        border: 1px solid #c3e6cb;
+        padding: 20px;
+        border-radius: 6px;
+        margin: 20px 0;
+        text-align: center;
+      }
+
+      .checklist {
+        background: #fafafa;
+        border: 1px solid #e0e0e0;
+        padding: 20px;
+        border-radius: 6px;
+        margin: 20px 0;
+      }
+
+      .checklist h3 {
+        margin-top: 0;
+        font-size: 16px;
+        color: #1e7e34;
+      }
+
+      ul,
+      ol {
+        padding-left: 20px;
+        margin: 10px 0;
+      }
+
+      li {
+        margin: 6px 0;
+        font-size: 14px;
+      }
+
+      .button {
+        display: inline-block;
+        margin-top: 20px;
+        padding: 12px 24px;
+        background-color: #1e7e34;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .footer {
+        text-align: center;
+        padding: 20px;
+        background: #f4f6f8;
+        border-top: 1px solid #e0e0e0;
+      }
+
+      .footer p {
+        font-size: 12px;
+        color: #777;
+        margin: 5px 0;
+      }
+
+      @media (max-width: 600px) {
+        .content {
+          padding: 20px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>ZipoRide</h1>
+      </div>
+
+      <div class="content">
+        <h2>Application Approved</h2>
+
+        <p>Dear <strong>{{driverName}}</strong>,</p>
+
+        <div class="status-box">
+          <p><strong>Your driver application has been approved.</strong></p>
+          <p>You are now eligible to start driving with ZipoRide.</p>
+        </div>
+
+        <p>All submitted documents have been successfully verified.</p>
+
+        <div class="checklist">
+          <h3>Verified Documents</h3>
+          <ul>
+            <li>Driving Licence</li>
+            <li>Vehicle Insurance</li>
+            <li>MOT Certificate</li>
+            <li>Background Check</li>
+          </ul>
+        </div>
+
+        <p>You can now begin accepting ride requests.</p>
+
+        <h3>Next Steps</h3>
+        <ol>
+          <li>Log in to your driver application</li>
+          <li>Update your availability</li>
+          <li>Start accepting ride requests</li>
+        </ol>
+
+        <p>If you need any assistance, please contact our support team.</p>
+
+        <p>Regards,<br />ZipoRide Team</p>
+      </div>
+
+      <div class="footer">
+        <p>© 2026 ZipoRide. All rights reserved.</p>
+        <p>This is an automated message. Please do not reply.</p>
+      </div>
+    </div>
+  </body>
+</html>
