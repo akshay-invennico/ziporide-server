@@ -146,18 +146,24 @@ const _handleCheckoutSessionCompleted = async (session) => {
   const stripeSubscription = await stripeService.retrieveSubscription(session.subscription);
   const driverId = session.metadata.driverId;
 
+  const firstItem = stripeSubscription.items?.data?.[0];
+  const periodStart = stripeSubscription.current_period_start ?? firstItem?.current_period_start;
+  const periodEnd = stripeSubscription.current_period_end ?? firstItem?.current_period_end;
+
+  const update = {
+    stripeSubscriptionId: stripeSubscription.id,
+    stripePriceId: firstItem?.price?.id,
+    status: stripeSubscription.status,
+    cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+    amount: firstItem?.price?.unit_amount,
+  };
+  if (periodStart) update.currentPeriodStart = new Date(periodStart * 1000);
+  if (periodEnd) update.currentPeriodEnd = new Date(periodEnd * 1000);
+
   // Update the pending subscription document we created earlier
   const subscriptionDoc = await Subscription.findOneAndUpdate(
     { stripeCheckoutSessionId: session.id },
-    {
-      stripeSubscriptionId: stripeSubscription.id,
-      stripePriceId: stripeSubscription.items.data[0]?.price?.id,
-      status: stripeSubscription.status,
-      currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
-      cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-      amount: stripeSubscription.items.data[0]?.price?.unit_amount,
-    },
+    update,
     { new: true }
   );
 
@@ -174,15 +180,21 @@ const _handleCheckoutSessionCompleted = async (session) => {
 
 /** @private */
 const _handleSubscriptionUpdated = async (stripeSubscription) => {
+  const firstItem = stripeSubscription.items?.data?.[0];
+  const periodStart = stripeSubscription.current_period_start ?? firstItem?.current_period_start;
+  const periodEnd = stripeSubscription.current_period_end ?? firstItem?.current_period_end;
+
+  const update = {
+    status: stripeSubscription.status,
+    cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+    canceledAt: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : undefined,
+  };
+  if (periodStart) update.currentPeriodStart = new Date(periodStart * 1000);
+  if (periodEnd) update.currentPeriodEnd = new Date(periodEnd * 1000);
+
   const subscriptionDoc = await Subscription.findOneAndUpdate(
     { stripeSubscriptionId: stripeSubscription.id },
-    {
-      status: stripeSubscription.status,
-      currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
-      cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-      canceledAt: stripeSubscription.canceled_at ? new Date(stripeSubscription.canceled_at * 1000) : undefined,
-    },
+    update,
     { new: true }
   );
 
