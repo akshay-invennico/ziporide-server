@@ -74,8 +74,8 @@ const updateUser = (req, res, next) => {
 };
 
 const deleteUser = {
-  params: Joi.object().keys({
-    userId: Joi.string().custom(objectId),
+  body: Joi.object().keys({
+    deleteReason: Joi.string().required().max(500),
   }),
 };
 

@@ -64,13 +64,18 @@ const updateUserById = async (user, updateBody) => {
  * @param {ObjectId} userId
  * @returns {Promise<User>}
  */
-const deleteUserById = async (userId) => {
-  const user = await getUserById(userId);
+const deleteUserById = async (user, deleteReason) => {
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
-  await user.remove();
-  return user;
+
+  const updatedUser = user;
+  updatedUser.isDeleted = true;
+  updatedUser.deletedAt = new Date();
+  updatedUser.deleteReason = deleteReason;
+  await updatedUser.save();
+
+  return updatedUser;
 };
 
 const updatePassword = async (userId, currentPassword, newPassword) => {

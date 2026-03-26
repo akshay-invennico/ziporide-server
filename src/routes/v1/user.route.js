@@ -14,8 +14,7 @@ router
   .route('/')
   .get(auth('getUsers'), validate(userValidation.getUser), userController.getUser)
   .patch(auth(), validate(userValidation.updateUser), userController.updateUser)
-  .delete(auth('manageUsers'), validate(userValidation.deleteUser), userController.deleteUser);
-
+  .delete(auth(), validate(userValidation.deleteUser), userController.deleteUser);
 module.exports = router;
 
 /**
