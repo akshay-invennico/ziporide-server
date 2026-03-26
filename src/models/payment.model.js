@@ -59,6 +59,8 @@ const paymentSchema = new mongoose.Schema(
     gateway: { type: String },
     /** Gateway's transaction/charge ID for reconciliation */
     gatewayTransactionId: { type: String },
+    /** Stripe Transfer ID linking the payout to the driver's connected account */
+    stripeTransferId: { type: String },
     /** Gateway raw response stored for debugging */
     gatewayResponse: { type: mongoose.Schema.Types.Mixed },
 
@@ -66,8 +68,8 @@ const paymentSchema = new mongoose.Schema(
     receiptUrl: { type: String },
 
     // ── Driver payout tracking ─────────────────────────────────────────────
-    /** Platform commission percentage (e.g. 20 = 20%) */
-    platformCommissionPct: { type: Number, default: 20 },
+    /** Platform commission percentage (0 = driver gets 100%, platform earns via subscriptions) */
+    platformCommissionPct: { type: Number, default: 0 },
     /** Actual amount paid out to driver */
     driverPayout: { type: Number },
     payoutStatus: {

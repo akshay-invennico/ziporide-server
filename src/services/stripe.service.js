@@ -358,6 +358,7 @@ const createAuthorizeHold = async ({ amount, currency, stripeCustomerId, payment
     capture_method: 'manual',
     confirm: true,
     off_session: true,
+    transfer_group: `ride_${rideId}`,
     metadata: { rideId: rideId.toString() },
     ...(description && { description }),
   });
@@ -424,6 +425,64 @@ const retrievePrice = async (priceId) => {
   return getStripe().prices.retrieve(priceId, { expand: ['product'] });
 };
 
+/**
+ * Create a PaymentIntent with immediate capture (e.g. for tips).
+ * Unlike createAuthorizeHold, this charges the card right away.
+ *
+ * @param {object} params
+ * @param {number} params.amount – Amount in pence
+ * @param {string} params.currency – e.g. 'gbp'
+ * @param {string} params.stripeCustomerId – Stripe cus_xxxx
+ * @param {string} params.paymentMethodId – Stripe pm_xxxx
+ * @param {string} params.rideId – MongoDB ride ID for metadata
+ * @param {string} [params.description]
+ * @returns {Promise<Stripe.PaymentIntent>}
+ */
+const createPaymentIntent = async ({ amount, currency, stripeCustomerId, paymentMethodId, rideId, description }) => {
+  const stripe = getStripe();
+  return stripe.paymentIntents.create({
+    amount,
+    currency: currency.toLowerCase(),
+    customer: stripeCustomerId,
+    payment_method: paymentMethodId,
+    confirm: true,
+    off_session: true,
+    transfer_group: `ride_${rideId}`,
+    metadata: { rideId: rideId.toString(), type: 'tip' },
+    ...(description && { description }),
+  });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stripe Connect – Transfers to driver connected accounts
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Create a Transfer to a driver's connected account.
+ * Uses source_transaction to link the transfer to the original charge,
+ * allowing the full charge amount to be transferred (platform absorbs Stripe fees).
+ *
+ * @param {object} params
+ * @param {number} params.amount – Amount in pence
+ * @param {string} params.currency – e.g. 'gbp'
+ * @param {string} params.destinationAccountId – Driver's Stripe Connect acct_xxxx
+ * @param {string} [params.sourceTransaction] – Stripe charge ID (ch_xxxx) to fund from
+ * @param {string} [params.transferGroup] – Groups related charges and transfers
+ * @param {string} [params.description]
+ * @returns {Promise<Stripe.Transfer>}
+ */
+const createTransfer = async ({ amount, currency, destinationAccountId, sourceTransaction, transferGroup, description }) => {
+  const stripe = getStripe();
+  return stripe.transfers.create({
+    amount,
+    currency: currency.toLowerCase(),
+    destination: destinationAccountId,
+    ...(sourceTransaction && { source_transaction: sourceTransaction }),
+    ...(transferGroup && { transfer_group: transferGroup }),
+    ...(description && { description }),
+  });
+};
+
 module.exports = {
   getStripe,
   createCustomer,
@@ -459,4 +518,8 @@ module.exports = {
   cancelPaymentIntent,
   retrievePaymentIntent,
   createRefund,
+  // Direct charges (tips)
+  createPaymentIntent,
+  // Connect transfers
+  createTransfer,
 };

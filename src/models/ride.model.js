@@ -155,6 +155,15 @@ const rideSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Rating',
     },
+    driverRating: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Rating',
+    },
+    tipAmount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
     rideTimestamps: {
       type: rideTimestampsSchema,
       default: () => ({}),

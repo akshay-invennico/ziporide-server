@@ -23,6 +23,11 @@ const ratingSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    ratedBy: {
+      type: String,
+      enum: ['rider', 'driver'],
+      required: true,
+    },
     stars: {
       type: Number,
       required: true,
@@ -38,14 +43,19 @@ const ratingSchema = new mongoose.Schema(
       trim: true,
       maxlength: 500,
     },
+    tipAmount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// One rating per ride — a rider cannot rate the same ride twice
-ratingSchema.index({ ride: 1 }, { unique: true });
+// One rating per ride per direction — rider rates driver, driver rates rider
+ratingSchema.index({ ride: 1, ratedBy: 1 }, { unique: true });
 
 ratingSchema.plugin(toJSON);
 ratingSchema.plugin(paginate);

@@ -21,10 +21,17 @@ router.post('/ride/:rideId', auth(), validate(ratingValidation.submitRating), ra
 router.get('/ride/:rideId', auth(), validate(ratingValidation.getRideRating), ratingController.getRideRating);
 
 /**
- * @route   GET /v1/ratings/driver/me
+ * @route   GET /v1/ratings/driver
  * @desc    Driver fetches their own received ratings (paginated)
  * @access  Private (driver)
  */
 router.get('/driver', auth(), validate(ratingValidation.getDriverRatings), ratingController.getDriverRatings);
+
+/**
+ * @route   GET /v1/ratings/rider
+ * @desc    Rider fetches their own received ratings from drivers (paginated)
+ * @access  Private (rider)
+ */
+router.get('/rider', auth(), validate(ratingValidation.getRiderRatings), ratingController.getRiderRatings);
 
 module.exports = router;

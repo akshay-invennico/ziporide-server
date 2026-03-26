@@ -6,3 +6,4 @@ module.exports.subscriptionValidation = require('./subscription.validation');
 module.exports.inventoryValidation = require('./inventory.validation');
 module.exports.pricingValidation = require('./pricing.validation');
 module.exports.paymentValidation = require('./payment.validation');
+module.exports.supportTicketValidation = require('./supportTicket.validation');

@@ -1,5 +1,5 @@
 const httpStatus = require('http-status');
-const { User, Payment, Ride } = require('../models');
+const { User, Payment, Ride, Driver } = require('../models');
 const PaymentMethod = require('../models/paymentMethod.model');
 const ApiError = require('../utils/ApiError');
 const stripeService = require('./stripe.service');
@@ -220,8 +220,14 @@ const authorizeRidePayment = async ({ rideId, riderId, paymentMethodId, estimate
 };
 
 /**
- * Capture the ride payment after completion.
- * The actual fare may be less than or equal to the authorized amount.
+ * Capture the ride payment after completion, then transfer the full amount
+ * to the driver's Stripe connected account.
+ *
+ * Flow (Separate charges and transfers):
+ *  1. Capture the authorized PaymentIntent
+ *  2. Create a Transfer with source_transaction to driver's connected account
+ *     → Driver receives 100% of fare (platform absorbs Stripe processing fees)
+ *     → Platform earns through driver subscriptions, not ride commissions
  *
  * @param {string} rideId
  * @param {number} [actualFare] – In pounds. If omitted, captures full authorized amount.
@@ -241,8 +247,34 @@ const captureRidePayment = async (rideId, actualFare) => {
 
   const paymentIntent = await stripeService.capturePaymentIntent(ride.stripePaymentIntentId, amountToCapture);
 
-  // Determine captured amount in pounds
-  const capturedPounds = paymentIntent.amount_received / 100;
+  // Determine captured amount in pounds and pence
+  const capturedPence = paymentIntent.amount_received;
+  const capturedPounds = capturedPence / 100;
+
+  // ── Transfer to driver's connected account ─────────────────────────────
+  // Uses source_transaction so the full charge amount can be transferred
+  // even though Stripe fees are deducted from the platform balance.
+  let transfer = null;
+  if (ride.driver) {
+    const driver = await Driver.findById(ride.driver);
+    if (driver && driver.stripeAccountId) {
+      try {
+        transfer = await stripeService.createTransfer({
+          amount: capturedPence,
+          currency: ride.fare.currency || 'GBP',
+          destinationAccountId: driver.stripeAccountId,
+          sourceTransaction: paymentIntent.latest_charge,
+          transferGroup: `ride_${rideId}`,
+          description: `Ride earnings – ${ride.rideNumber}`,
+        });
+        logger.info(`Transfer ${transfer.id} created for ride ${rideId} → driver ${driver.stripeAccountId}`);
+      } catch (err) {
+        logger.error(`Failed to transfer ride payment to driver for ride ${rideId}:`, err.message);
+      }
+    } else {
+      logger.warn(`Driver ${ride.driver} has no stripeAccountId — transfer skipped for ride ${rideId}`);
+    }
+  }
 
   // Create Payment record
   const payment = await Payment.create({
@@ -256,14 +288,19 @@ const captureRidePayment = async (rideId, actualFare) => {
     status: 'completed',
     gateway: 'stripe',
     gatewayTransactionId: paymentIntent.id,
+    stripeTransferId: transfer?.id || null,
     gatewayResponse: {
       id: paymentIntent.id,
       amount: paymentIntent.amount,
       amount_received: paymentIntent.amount_received,
       status: paymentIntent.status,
+      chargeId: paymentIntent.latest_charge,
+      transferId: transfer?.id,
     },
-    platformCommissionPct: 20,
-    driverPayout: capturedPounds * 0.8,
+    platformCommissionPct: 0,
+    driverPayout: capturedPounds,
+    payoutStatus: transfer ? 'paid' : 'pending',
+    ...(transfer && { payoutAt: new Date() }),
   });
 
   // Update ride payment status
@@ -299,6 +336,8 @@ const releaseRidePayment = async (rideId) => {
 
 /**
  * Refund a captured ride payment (full or partial).
+ * Stripe automatically reverses the associated transfer to the driver's
+ * connected account when reverse_transfer is set to true.
  *
  * @param {string} rideId
  * @param {number} [refundAmount] – In pounds. If omitted, full refund.
@@ -343,6 +382,123 @@ const refundRidePayment = async (rideId, refundAmount) => {
   return payment;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Tip payment – separate immediate charge
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Charge a tip for a completed ride as a separate Stripe transaction,
+ * then transfer the full amount to the driver's connected account.
+ *
+ * Flow:
+ *  1. Create an immediate-capture PaymentIntent for the tip
+ *  2. Transfer full tip amount to driver via source_transaction
+ *     → Driver receives 100% of tip, platform absorbs Stripe fees
+ *
+ * @param {object} params
+ * @param {string} params.rideId
+ * @param {string} params.riderId
+ * @param {number} params.tipAmount – In pounds (e.g. 2.00)
+ * @returns {Promise<Payment>}
+ */
+const chargeTip = async ({ rideId, riderId, tipAmount }) => {
+  const ride = await Ride.findById(rideId).populate('paymentMethod');
+  if (!ride) throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
+
+  if (ride.rider.toString() !== riderId.toString()) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You can only tip on your own rides');
+  }
+
+  if (ride.status !== 'completed') {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Tips can only be added to completed rides');
+  }
+
+  // Check if a tip has already been charged for this ride
+  const existingTip = await Payment.findOne({ ride: rideId, type: 'tip', status: 'completed' });
+  if (existingTip) {
+    throw new ApiError(httpStatus.CONFLICT, 'A tip has already been added for this ride');
+  }
+
+  // Use the same payment method that was used for the ride
+  const pm = ride.paymentMethod;
+  if (!pm || !pm.gatewayPaymentMethodId || !pm.gatewayCustomerId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'No valid payment method found for this ride');
+  }
+
+  const amountInPence = _toPence(tipAmount);
+  if (amountInPence < 30) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Tip amount must be at least £0.30');
+  }
+
+  const paymentIntent = await stripeService.createPaymentIntent({
+    amount: amountInPence,
+    currency: ride.fare.currency || 'GBP',
+    stripeCustomerId: pm.gatewayCustomerId,
+    paymentMethodId: pm.gatewayPaymentMethodId,
+    rideId,
+    description: `Tip – Ride ${ride.rideNumber}`,
+  });
+
+  if (paymentIntent.status !== 'succeeded') {
+    logger.error('Tip PaymentIntent failed:', paymentIntent.status);
+    throw new ApiError(httpStatus.PAYMENT_REQUIRED, 'Tip payment failed. Please try again.');
+  }
+
+  const tipPence = paymentIntent.amount_received;
+  const tipPounds = tipPence / 100;
+
+  // ── Transfer tip to driver's connected account ─────────────────────────
+  let transfer = null;
+  if (ride.driver) {
+    const driver = await Driver.findById(ride.driver);
+    if (driver && driver.stripeAccountId) {
+      try {
+        transfer = await stripeService.createTransfer({
+          amount: tipPence,
+          currency: ride.fare.currency || 'GBP',
+          destinationAccountId: driver.stripeAccountId,
+          sourceTransaction: paymentIntent.latest_charge,
+          transferGroup: `ride_${rideId}`,
+          description: `Tip – Ride ${ride.rideNumber}`,
+        });
+        logger.info(`Tip transfer ${transfer.id} created for ride ${rideId} → driver ${driver.stripeAccountId}`);
+      } catch (err) {
+        logger.error(`Failed to transfer tip to driver for ride ${rideId}:`, err.message);
+      }
+    } else {
+      logger.warn(`Driver ${ride.driver} has no stripeAccountId — tip transfer skipped for ride ${rideId}`);
+    }
+  }
+
+  const payment = await Payment.create({
+    ride: rideId,
+    rider: ride.rider,
+    driver: ride.driver,
+    paymentMethod: pm._id,
+    amount: tipPounds,
+    currency: ride.fare.currency || 'GBP',
+    type: 'tip',
+    status: 'completed',
+    gateway: 'stripe',
+    gatewayTransactionId: paymentIntent.id,
+    stripeTransferId: transfer?.id || null,
+    gatewayResponse: {
+      id: paymentIntent.id,
+      amount: paymentIntent.amount,
+      amount_received: paymentIntent.amount_received,
+      status: paymentIntent.status,
+      chargeId: paymentIntent.latest_charge,
+      transferId: transfer?.id,
+    },
+    platformCommissionPct: 0,
+    driverPayout: tipPounds,
+    payoutStatus: transfer ? 'paid' : 'pending',
+    ...(transfer && { payoutAt: new Date() }),
+  });
+
+  return payment;
+};
+
 module.exports = {
   // Stripe customer
   getOrCreateStripeCustomer,
@@ -357,4 +513,6 @@ module.exports = {
   captureRidePayment,
   releaseRidePayment,
   refundRidePayment,
+  // Tips
+  chargeTip,
 };
