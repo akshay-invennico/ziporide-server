@@ -21,7 +21,21 @@ const getRider = {
   }),
 };
 
+const updateRidersStatus = {
+  body: Joi.object().keys({
+    riderIds: Joi.array().items(Joi.string().custom(objectId)).min(1).required().messages({
+      'array.min': 'At least one rider ID is required',
+      'any.required': 'Rider IDs are required',
+    }),
+    status: Joi.string().valid('active', 'suspended').required().messages({
+      'any.only': 'Status must be either active or suspended',
+      'any.required': 'Status is required',
+    }),
+  }),
+};
+
 module.exports = {
   getRiders,
   getRider,
+  updateRidersStatus,
 };

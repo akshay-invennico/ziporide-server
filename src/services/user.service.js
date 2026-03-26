@@ -1,4 +1,5 @@
 const httpStatus = require('http-status');
+const mongoose = require('mongoose');
 const { User } = require('../models');
 const ApiError = require('../utils/ApiError');
 const authService = require('./auth.service');
@@ -131,6 +132,10 @@ const updatePassword = async (userId, currentPassword, newPassword) => {
   const isCurrentPasswordValid = await user.isPasswordMatch(currentPassword);
   if (!isCurrentPasswordValid) {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Current password is incorrect');
+  }
+
+  if (currentPassword === newPassword) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'New password must be different from current password');
   }
 
   user.password = newPassword;
@@ -285,6 +290,35 @@ const queryUsers = async (filter, options) => {
   return User.paginate(query, options);
 };
 
+/**
+ * Bulk update rider status
+ * @param {Array} riderIds - Array of rider IDs
+ * @param {string} status - New status ('active' or 'suspended')
+ * @returns {Promise<Object>} - Update result
+ */
+const bulkUpdateRiderStatus = async (riderIds, status) => {
+  const validIds = riderIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
+  if (validIds.length === 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'No valid rider IDs provided');
+  }
+
+  const result = await User.updateMany(
+    {
+      _id: { $in: validIds },
+    },
+    {
+      status,
+      updatedAt: new Date(),
+    }
+  );
+
+  return {
+    matchedCount: result.matchedCount,
+    modifiedCount: result.modifiedCount,
+    status,
+  };
+};
+
 module.exports = {
   getUserById,
   getUserByPhone,
@@ -293,4 +327,5 @@ module.exports = {
   updatePassword,
   queryUsers,
   initiateAccountDeletion,
+  bulkUpdateRiderStatus,
 };

@@ -87,6 +87,22 @@ const getUsers = catchAsync(async (req, res) => {
   });
 });
 
+const updateRidersStatus = catchAsync(async (req, res) => {
+  const { riderIds, status } = req.body;
+  const result = await userService.bulkUpdateRiderStatus(riderIds, status);
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: `Rider status updated to ${status} successfully`,
+    data: {
+      totalRequested: riderIds.length,
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount,
+      status: result.status,
+    },
+  });
+});
+
 module.exports = {
   getMe,
   getUser,
@@ -95,4 +111,5 @@ module.exports = {
   getUsers,
   initiateDeleteAccount,
   verifyDeleteAccount,
+  updateRidersStatus,
 };

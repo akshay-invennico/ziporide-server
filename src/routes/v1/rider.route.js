@@ -8,7 +8,8 @@ const router = express.Router();
 
 router
   .get('/', auth(), validate(riderValidation.getRiders), userController.getUsers)
-  .get('/:userId', auth(), validate(riderValidation.getRider), userController.getUser);
+  .get('/:userId', auth(), validate(riderValidation.getRider), userController.getUser)
+  .patch('/status', auth(), validate(riderValidation.updateRidersStatus), userController.updateRidersStatus);
 
 module.exports = router;
 
@@ -127,4 +128,65 @@ module.exports = router;
  *          $ref: '#/components/responses/Unauthorized'
  *        "404":
  *          $ref: '#/components/responses/NotFound'
+ */
+
+/**
+ * @swagger
+ * path:
+ *  /riders/status:
+ *    patch:
+ *      summary: Bulk update rider status
+ *      description: Update status for multiple riders at once. Only admin users can perform this action.
+ *      tags: [Riders]
+ *      security:
+ *        - bearerAuth: []
+ *      requestBody:
+ *        required: true
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              required:
+ *                - riderIds
+ *                - status
+ *              properties:
+ *                riderIds:
+ *                  type: array
+ *                  items:
+ *                    type: string
+ *                  description: Array of rider IDs to update
+ *                  minItems: 1
+ *                status:
+ *                  type: string
+ *                  enum: [active, suspended]
+ *                  description: New status to set for riders
+ *      responses:
+ *        "200":
+ *          description: Status updated successfully
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: object
+ *                properties:
+ *                  success:
+ *                    type: boolean
+ *                  message:
+ *                    type: string
+ *                  data:
+ *                    type: object
+ *                    properties:
+ *                      totalRequested:
+ *                        type: integer
+ *                      matchedCount:
+ *                        type: integer
+ *                      modifiedCount:
+ *                        type: integer
+ *                      status:
+ *                        type: string
+ *        "400":
+ *          $ref: '#/components/responses/BadRequest'
+ *        "401":
+ *          $ref: '#/components/responses/Unauthorized'
+ *        "403":
+ *          $ref: '#/components/responses/Forbidden'
  */
