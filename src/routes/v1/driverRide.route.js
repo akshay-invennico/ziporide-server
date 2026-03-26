@@ -2,7 +2,9 @@ const express = require('express');
 const { auth } = require('../../middlewares/auth');
 const validate = require('../../middlewares/validate');
 const rideValidation = require('../../validations/ride.validation');
+const ratingValidation = require('../../validations/rating.validation');
 const driverRideController = require('../../controllers/driverRide.controller');
+const ratingController = require('../../controllers/rating.controller');
 
 const router = express.Router();
 
@@ -71,6 +73,13 @@ router.post('/:rideId/complete', validate(rideValidation.completeRide), driverRi
  * Body: { reason: string, customReason?: string }
  */
 router.post('/:rideId/cancel', validate(rideValidation.driverCancelRide), driverRideController.cancelRide);
+
+/**
+ * POST /v1/driver/rides/:rideId/rate
+ * Driver rates the rider after ride completion.
+ * Body: { stars: 1-5, behaviourTags?: [...], feedback?: string }
+ */
+router.post('/:rideId/rate', validate(ratingValidation.submitRiderRating), ratingController.submitRiderRating);
 
 /**
  * GET /v1/driver/rides/:rideId

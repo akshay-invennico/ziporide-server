@@ -108,11 +108,12 @@ const findNearbyDrivers = async (pickup, vehicleType) => {
 
 /**
  * Build the payload sent to the driver's app.
- * Fetches a fresh, populated ride so the driver sees all the details.
+ * Fetches a fresh, populated ride so the driver sees all the details
+ * including the rider's rating and total trips.
  */
 const buildRidePayload = async (rideId) => {
   return Ride.findById(rideId)
-    .populate('rider', 'name phone profile')
+    .populate('rider', 'name phone profile avgRating totalRatings')
     .lean();
 };
 
