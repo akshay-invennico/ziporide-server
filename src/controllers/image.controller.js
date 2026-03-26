@@ -2,20 +2,25 @@ const httpStatus = require('http-status');
 const catchAsync = require('../utils/catchAsync');
 const ApiError = require('../utils/ApiError');
 
-const uploadImages = catchAsync(async (req, res) => {
+const uploadFiles = catchAsync(async (req, res) => {
   if (!req.files || req.files.length === 0) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'No images provided');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'No files provided');
   }
 
-  const urls = req.files.map((file) => file.location);
+  const files = req.files.map((file) => ({
+    url: file.location,
+    originalName: file.originalname,
+    mimetype: file.mimetype,
+    size: file.size,
+  }));
 
   res.status(httpStatus.CREATED).send({
     success: true,
-    message: 'Images uploaded successfully',
-    data: { images: urls },
+    message: 'Files uploaded successfully',
+    data: { files },
   });
 });
 
 module.exports = {
-  uploadImages,
+  uploadFiles,
 };

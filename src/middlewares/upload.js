@@ -12,19 +12,9 @@ const s3 = new S3Client({
   region: config.aws.s3.region,
 });
 
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_FILE_SIZE_MB = 5;
-
-const fileFilter = (_, file, cb) => {
-  if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Invalid file type. Only JPEG, PNG, and WebP are allowed.'), false);
-  }
-};
+const MAX_FILE_SIZE_MB = 10;
 
 const upload = multer({
-  fileFilter,
   limits: { fileSize: MAX_FILE_SIZE_MB * 1024 * 1024 },
   storage: multerS3({
     s3,
@@ -35,7 +25,7 @@ const upload = multer({
     },
     key(_, file, cb) {
       const ext = path.extname(file.originalname).toLowerCase();
-      cb(null, `images/${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`);
+      cb(null, `uploads/${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`);
     },
   }),
 });
