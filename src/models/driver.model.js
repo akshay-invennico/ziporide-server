@@ -129,6 +129,10 @@ const driverSchema = new mongoose.Schema(
       default: 'pending',
     },
 
+    rejectedReason: {
+      type: String,
+    },
+
     isPhoneVerified: {
       type: Boolean,
       default: false,
@@ -216,6 +220,17 @@ const driverSchema = new mongoose.Schema(
     totalRatings: {
       type: Number,
       default: 0,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+    },
+    deleteReason: {
+      type: String,
+      maxlength: 500,
     },
   },
   {

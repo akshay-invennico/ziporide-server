@@ -6,14 +6,15 @@ const userController = require('../../controllers/user.controller');
 
 const router = express.Router();
 
-router.get('/me', auth(), userController.getMe);
+router
+  .get('/me', auth(), userController.getMe)
+  .patch('/password', auth(), validate(userValidation.updatePassword), userController.updatePassword);
 
 router
-  .route('/:userId')
+  .route('/')
   .get(auth('getUsers'), validate(userValidation.getUser), userController.getUser)
-  .patch(auth('manageUsers'), validate(userValidation.updateUser), userController.updateUser)
-  .delete(auth('manageUsers'), validate(userValidation.deleteUser), userController.deleteUser);
-
+  .patch(auth(), validate(userValidation.updateUser), userController.updateUser)
+  .delete(auth(), validate(userValidation.deleteUser), userController.deleteUser);
 module.exports = router;
 
 /**
@@ -248,4 +249,59 @@ module.exports = router;
  *          $ref: '#/components/responses/Forbidden'
  *        "404":
  *          $ref: '#/components/responses/NotFound'
+ */
+
+/**
+ * @swagger
+ * path:
+ *  /users/password:
+ *    patch:
+ *      summary: Update user password
+ *      description: Users can update their own password by providing current password and new password.
+ *      tags: [Users]
+ *      security:
+ *        - bearerAuth: []
+ *      requestBody:
+ *        required: true
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              required:
+ *                - currentPassword
+ *                - newPassword
+ *              properties:
+ *                currentPassword:
+ *                  type: string
+ *                  format: password
+ *                  description: Current user password
+ *                newPassword:
+ *                  type: string
+ *                  format: password
+ *                  minLength: 8
+ *                  description: New password (at least one number and one letter)
+ *              example:
+ *                currentPassword: oldpassword123
+ *                newPassword: newpassword456
+ *      responses:
+ *        "200":
+ *          description: Password updated successfully
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: object
+ *                properties:
+ *                  success:
+ *                    type: boolean
+ *                  message:
+ *                    type: string
+ *                  data:
+ *                    type: object
+ *                    properties:
+ *                      user:
+ *                        $ref: '#/components/schemas/User'
+ *        "400":
+ *          $ref: '#/components/responses/BadRequest'
+ *        "401":
+ *          $ref: '#/components/responses/Unauthorized'
  */
