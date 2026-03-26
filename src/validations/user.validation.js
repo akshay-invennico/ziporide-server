@@ -86,6 +86,18 @@ const updatePassword = {
   }),
 };
 
+const initiateDeleteAccount = {
+  body: Joi.object().keys({
+    deleteReason: Joi.string().required().max(250),
+  }),
+};
+
+const verifyDeleteAccount = {
+  body: Joi.object().keys({
+    otp: Joi.string().required().length(6).pattern(/^\d+$/),
+  }),
+};
+
 module.exports = {
   createUser,
   getUsers,
@@ -93,4 +105,6 @@ module.exports = {
   updateUser,
   deleteUser,
   updatePassword,
+  initiateDeleteAccount,
+  verifyDeleteAccount,
 };

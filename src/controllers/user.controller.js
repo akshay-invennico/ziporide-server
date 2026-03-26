@@ -35,9 +35,26 @@ const updateUser = catchAsync(async (req, res) => {
   });
 });
 
-const deleteUser = catchAsync(async (req, res) => {
+const initiateDeleteAccount = catchAsync(async (req, res) => {
   const { deleteReason } = req.body;
-  await userService.deleteUserById(req.user, deleteReason);
+  const result = await userService.initiateAccountDeletion(req.user, deleteReason);
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: result.message,
+    data: {
+      maskedPhone: result.maskedPhone,
+    },
+  });
+});
+
+/**
+ * Verify OTP and delete account
+ */
+const verifyDeleteAccount = catchAsync(async (req, res) => {
+  const { otp } = req.body;
+  await userService.deleteUserById(req.user, otp);
+
   res.status(httpStatus.OK).send({
     success: true,
     statusCode: httpStatus.OK,
@@ -60,6 +77,7 @@ module.exports = {
   getMe,
   getUser,
   updateUser,
-  deleteUser,
   updatePassword,
+  initiateDeleteAccount,
+  verifyDeleteAccount,
 };
