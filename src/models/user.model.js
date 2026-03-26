@@ -97,6 +97,18 @@ const userSchema = mongoose.Schema(
     lastLoginAt: {
       type: Date,
     },
+
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+    },
+    deleteReason: {
+      type: String,
+      maxlength: 500,
+    },
   },
   {
     timestamps: true,

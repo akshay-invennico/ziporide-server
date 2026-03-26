@@ -7,7 +7,7 @@ const createCategory = {
     baseFare: Joi.number().min(0).required(),
     pricePerMile: Joi.number().min(0).required(),
     pricePerMinute: Joi.number().min(0).required(),
-    vehicleType: Joi.string().valid('car', 'bike', 'van').required(),
+    vehicleType: Joi.string().trim().required(),
     seatCapacity: Joi.number().valid(1, 2, 4, 6).required(),
     categoryIcon: Joi.string().required(),
   }),
@@ -16,7 +16,7 @@ const createCategory = {
 const getCategories = {
   query: Joi.object().keys({
     name: Joi.string().optional(),
-    vehicleType: Joi.string().valid('car', 'bike', 'van').optional(),
+    vehicleType: Joi.string().trim().optional(),
     isActive: Joi.boolean().optional(),
     sortBy: Joi.string().optional(),
     limit: Joi.number().integer().min(1).max(100).default(20),
@@ -40,7 +40,7 @@ const updateCategory = {
       baseFare: Joi.number().min(0).optional(),
       pricePerMile: Joi.number().min(0).optional(),
       pricePerMinute: Joi.number().min(0).optional(),
-      vehicleType: Joi.string().valid('car', 'bike', 'van').optional(),
+      vehicleType: Joi.string().trim().optional(),
       seatCapacity: Joi.number().valid(1, 2, 4, 6).optional(),
       categoryIcon: Joi.string().optional(),
       isActive: Joi.boolean().optional(),

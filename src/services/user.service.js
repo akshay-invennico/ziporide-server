@@ -27,12 +27,34 @@ const getUserByPhone = async (phone, countryCode) => {
  * @param {Object} updateBody
  * @returns {Promise<User>}
  */
-const updateUserById = async (userId, updateBody) => {
-  const user = await getUserById(userId);
+const updateUserById = async (user, updateBody) => {
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
-  Object.assign(user, updateBody);
+
+  // Handle field mappings based on user type
+  const mappedUpdateBody = { ...updateBody };
+
+  if (user.constructor.modelName === 'Driver') {
+    // Map profile to profilePhotoUrl for Driver
+    if (mappedUpdateBody.profile && !mappedUpdateBody.profilePhotoUrl) {
+      mappedUpdateBody.profilePhotoUrl = mappedUpdateBody.profile;
+      delete mappedUpdateBody.profile;
+    }
+    // Map postCode to address.postcode for Driver
+    if (mappedUpdateBody.postCode) {
+      mappedUpdateBody.address = {
+        ...(user.address || {}),
+        postcode: mappedUpdateBody.postCode,
+      };
+      delete mappedUpdateBody.postCode;
+    }
+  } else {
+    // For User model (rider/admin), profile field stays as is
+    // No field mapping needed
+  }
+
+  Object.assign(user, mappedUpdateBody);
   await user.save();
   return user;
 };
@@ -42,13 +64,18 @@ const updateUserById = async (userId, updateBody) => {
  * @param {ObjectId} userId
  * @returns {Promise<User>}
  */
-const deleteUserById = async (userId) => {
-  const user = await getUserById(userId);
+const deleteUserById = async (user, deleteReason) => {
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
-  await user.remove();
-  return user;
+
+  const updatedUser = user;
+  updatedUser.isDeleted = true;
+  updatedUser.deletedAt = new Date();
+  updatedUser.deleteReason = deleteReason;
+  await updatedUser.save();
+
+  return updatedUser;
 };
 
 const updatePassword = async (userId, currentPassword, newPassword) => {

@@ -35,10 +35,14 @@ const licenceSchema = new mongoose.Schema(
 
 const vehicleSchema = new mongoose.Schema(
   {
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'VehicleCategory',
+    },
     type: {
       type: String,
-      enum: ['electric', 'standard', 'xl', 'executive'],
-      default: 'standard',
+      trim: true,
+      lowercase: true,
     },
     registrationNumber: { type: String, trim: true, uppercase: true },
     make: { type: String, trim: true },
@@ -123,6 +127,10 @@ const driverSchema = new mongoose.Schema(
       type: String,
       enum: ['pending', 'approved', 'rejected', 'suspended'],
       default: 'pending',
+    },
+
+    rejectedReason: {
+      type: String,
     },
 
     isPhoneVerified: {
@@ -212,6 +220,17 @@ const driverSchema = new mongoose.Schema(
     totalRatings: {
       type: Number,
       default: 0,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+    },
+    deleteReason: {
+      type: String,
+      maxlength: 500,
     },
   },
   {

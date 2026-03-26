@@ -28,21 +28,31 @@ app.use(helmet());
 app.use('/v1/driver/subscription/webhook', express.raw({ type: 'application/json' }));
 app.use('/v1/driver/account/webhook', express.raw({ type: 'application/json' }));
 
-// parse json request body — skip webhook routes (they need raw body)
+// Paths that need raw body — skip all body-transforming middleware for these
 const webhookPaths = ['/v1/driver/subscription/webhook', '/v1/driver/account/webhook'];
+const isWebhook = (req) => webhookPaths.some((p) => req.path.startsWith(p));
+
+// parse json request body — skip webhook routes (they need raw body)
 app.use((req, res, next) => {
-  if (webhookPaths.includes(req.originalUrl)) {
-    return next();
-  }
+  if (isWebhook(req)) return next();
   express.json()(req, res, next);
 });
 
-// parse urlencoded request body
-app.use(express.urlencoded({ extended: true }));
+// parse urlencoded request body — skip webhook routes
+app.use((req, res, next) => {
+  if (isWebhook(req)) return next();
+  express.urlencoded({ extended: true })(req, res, next);
+});
 
-// sanitize request data
-app.use(xss());
-app.use(mongoSanitize());
+// sanitize request data — skip webhook routes
+app.use((req, res, next) => {
+  if (isWebhook(req)) return next();
+  xss()(req, res, next);
+});
+app.use((req, res, next) => {
+  if (isWebhook(req)) return next();
+  mongoSanitize()(req, res, next);
+});
 
 // gzip compression
 app.use(compression());
