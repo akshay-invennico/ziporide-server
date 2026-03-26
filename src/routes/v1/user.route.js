@@ -12,10 +12,13 @@ router
   .patch('/password', auth(), validate(userValidation.updatePassword), userController.updatePassword);
 
 router
+  .post('/delete/initiate', auth(), validate(userValidation.initiateDeleteAccount), userController.initiateDeleteAccount)
+  .delete('/delete/verify', auth(), validate(userValidation.verifyDeleteAccount), userController.verifyDeleteAccount);
+
+router
   .route('/')
   .get(auth('getUsers'), validate(userValidation.getUser), userController.getUser)
-  .patch(auth(), validate(userValidation.updateUser), userController.updateUser)
-  .delete(auth(), validate(userValidation.deleteUser), userController.deleteUser);
+  .patch(auth(), validate(userValidation.updateUser), userController.updateUser);
 module.exports = router;
 
 /**
@@ -301,6 +304,100 @@ module.exports = router;
  *                    properties:
  *                      user:
  *                        $ref: '#/components/schemas/User'
+ *        "400":
+ *          $ref: '#/components/responses/BadRequest'
+ *        "401":
+ *          $ref: '#/components/responses/Unauthorized'
+ */
+
+/**
+ * @swagger
+ * path:
+ *  /users/delete/initiate:
+ *    post:
+ *      summary: Initiate account deletion process
+ *      description: Sends OTP to user's registered mobile number for account deletion verification
+ *      tags: [Users]
+ *      security:
+ *        - bearerAuth: []
+ *      requestBody:
+ *        required: true
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              required:
+ *                - deleteReason
+ *              properties:
+ *                deleteReason:
+ *                  type: string
+ *                  maxLength: 250
+ *                  description: Reason for account deletion
+ *              example:
+ *                deleteReason: "I'm no longer using this platform"
+ *      responses:
+ *        "200":
+ *          description: OTP sent successfully
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: object
+ *                properties:
+ *                  success:
+ *                    type: boolean
+ *                  message:
+ *                    type: string
+ *                  data:
+ *                    type: object
+ *                    properties:
+ *                      maskedPhone:
+ *                        type: string
+ *                        example: "+44 **** 9021"
+ *        "400":
+ *          $ref: '#/components/responses/BadRequest'
+ *        "401":
+ *          $ref: '#/components/responses/Unauthorized'
+ *
+ *  /users/delete/verify:
+ *    delete:
+ *      summary: Verify OTP and delete account
+ *      description: Verifies the OTP and permanently deletes the user account
+ *      tags: [Users]
+ *      security:
+ *        - bearerAuth: []
+ *      requestBody:
+ *        required: true
+ *        content:
+ *          application/json:
+ *            schema:
+ *              type: object
+ *              required:
+ *                - otp
+ *                - deleteReason
+ *              properties:
+ *                otp:
+ *                  type: string
+ *                  pattern: '^\d{6}$'
+ *                  description: 6-digit OTP code
+ *                deleteReason:
+ *                  type: string
+ *                  maxLength: 250
+ *                  description: Reason for account deletion (must match initiation)
+ *              example:
+ *                otp: "123456"
+ *                deleteReason: "I'm no longer using this platform"
+ *      responses:
+ *        "200":
+ *          description: Account deleted successfully
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: object
+ *                properties:
+ *                  success:
+ *                    type: boolean
+ *                  message:
+ *                    type: string
  *        "400":
  *          $ref: '#/components/responses/BadRequest'
  *        "401":
