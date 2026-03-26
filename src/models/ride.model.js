@@ -104,8 +104,9 @@ const rideSchema = new mongoose.Schema(
     },
     vehicleType: {
       type: String,
-      enum: ['car', 'bike', 'van', 'electric', 'standard', 'xl', 'executive'],
       required: true,
+      trim: true,
+      lowercase: true,
     },
     category: {
       type: mongoose.Schema.Types.ObjectId,

@@ -13,6 +13,7 @@ router.patch('/onboarding/vehicle', auth(), validate(driverValidation.updateVehi
 router.post('/refresh/tokens', validate(driverValidation.refreshTokens), driverController.refreshTokens);
 router.post('/logout', validate(driverValidation.logout), driverController.logout);
 router.get('/', auth(), validate(driverValidation.getAllDrivers), driverController.getAllDrivers);
+router.get('/vehicle/types', auth(), driverController.getVehicleTypes);
 router.get('/:id', auth(), validate(driverValidation.getDriverById), driverController.getDriverById);
 router.patch(
   '/:id/verify/:documentType',

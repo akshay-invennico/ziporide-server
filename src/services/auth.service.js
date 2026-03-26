@@ -33,6 +33,10 @@ const sendOtp = async (phone, countryCode) => {
   if (!user) {
     user = await User.create({ phone, countryCode, otp, otpExpiresAt });
   } else {
+    if (user.isDeleted) {
+      throw new ApiError(httpStatus.FORBIDDEN, 'Your account has been deleted. Please contact support.');
+    }
+
     if (user.status === 'blocked') {
       throw new ApiError(httpStatus.FORBIDDEN, 'Your account has been blocked. Please contact support.');
     }
@@ -173,6 +177,7 @@ const forgotPassword = async (email) => {
 
   // Read and render the OTP template
   const templatePath = path.join(__dirname, '../template/otp-verification.html');
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   let htmlTemplate = await fs.readFile(templatePath, 'utf8');
 
   // Replace template variables

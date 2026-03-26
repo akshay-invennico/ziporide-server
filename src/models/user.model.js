@@ -67,10 +67,17 @@ const userSchema = mongoose.Schema(
 
     status: {
       type: String,
-      enum: ['active', 'blocked'],
+      enum: ['active', 'blocked', 'suspended'],
       default: 'active',
     },
-
+    totalRatings: {
+      type: Number,
+      default: 0,
+    },
+    totalSpent: {
+      type: Number,
+      default: 0,
+    },
     isPhoneVerified: {
       type: Boolean,
       default: false,
@@ -89,6 +96,18 @@ const userSchema = mongoose.Schema(
 
     lastLoginAt: {
       type: Date,
+    },
+
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+    },
+    deleteReason: {
+      type: String,
+      maxlength: 500,
     },
   },
   {

@@ -128,6 +128,15 @@ const updateDriverStatus = catchAsync(async (req, res) => {
   });
 });
 
+const getVehicleTypes = catchAsync(async (req, res) => {
+  const categories = await driverService.getVehicleTypes();
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Vehicle types retrieved successfully',
+    data: { vehicleTypes: categories },
+  });
+});
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -141,4 +150,5 @@ module.exports = {
   getDriverById,
   verifyDocument,
   updateDriverStatus,
+  getVehicleTypes,
 };

@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 const { toJSON, paginate } = require('./plugins');
 
-const VEHICLE_TYPES = ['car', 'bike', 'van'];
 const SEAT_CAPACITIES = [1, 2, 4, 6];
 
 const vehicleCategorySchema = new mongoose.Schema(
@@ -30,7 +29,8 @@ const vehicleCategorySchema = new mongoose.Schema(
     vehicleType: {
       type: String,
       required: true,
-      enum: VEHICLE_TYPES,
+      trim: true,
+      lowercase: true,
     },
     seatCapacity: {
       type: Number,
