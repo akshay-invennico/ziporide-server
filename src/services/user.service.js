@@ -1,6 +1,7 @@
 const httpStatus = require('http-status');
 const { User } = require('../models');
 const ApiError = require('../utils/ApiError');
+const authService = require('./auth.service');
 
 /**
  * Get user by id
@@ -60,22 +61,61 @@ const updateUserById = async (user, updateBody) => {
 };
 
 /**
- * Delete user by id
- * @param {ObjectId} userId
- * @returns {Promise<User>}
+ * Initiate account deletion process
+ * @param {Object} user - User document
+ * @param {string} deleteReason - Reason for deletion
+ * @returns {Promise<{message: string, maskedPhone: string}>}
  */
-const deleteUserById = async (user, deleteReason) => {
+const initiateAccountDeletion = async (user, deleteReason) => {
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
 
+  if (user.isDeleted) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Account is already deleted');
+  }
+
+  // Use existing sendOtp function from auth service
+  await authService.sendOtp(user.phone, user.countryCode);
+
+  // Store deletion reason temporarily
   const updatedUser = user;
-  updatedUser.isDeleted = true;
-  updatedUser.deletedAt = new Date();
   updatedUser.deleteReason = deleteReason;
   await updatedUser.save();
 
-  return updatedUser;
+  // Mask phone number for response
+  const maskedPhone = `${user.countryCode} **** ${user.phone.slice(-4)}`;
+
+  return {
+    message: 'Verification code sent to your registered mobile number',
+    maskedPhone,
+  };
+};
+
+/**
+ * Delete user by id with OTP verification
+ * @param {Object} user - User document
+ * @param {string} otp - OTP code
+ * @returns {Promise<User>}
+ */
+const deleteUserById = async (user, otp) => {
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  if (user.isDeleted) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Account is already deleted');
+  }
+
+  // Verify OTP using existing auth service function
+  const verifiedUser = await authService.verifyOtp(user.phone, user.countryCode, otp);
+  // Soft delete the user
+  const deletedUser = verifiedUser;
+  deletedUser.isDeleted = true;
+  deletedUser.deletedAt = new Date();
+  await deletedUser.save();
+
+  return deletedUser;
 };
 
 const updatePassword = async (userId, currentPassword, newPassword) => {
@@ -252,4 +292,5 @@ module.exports = {
   deleteUserById,
   updatePassword,
   queryUsers,
+  initiateAccountDeletion,
 };
