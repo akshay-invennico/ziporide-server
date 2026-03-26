@@ -466,11 +466,13 @@ const updateDriverStatus = async (driverId, action, reason = null) => {
       );
     }
     driver.status = 'approved';
+    driver.rejectedReason = null;
 
     // Send approval email
     await emailService.sendDriverApprovalEmail(driver);
   } else if (action === 'reject') {
     driver.status = 'rejected';
+    driver.rejectedReason = reason;
 
     // Get unverified documents and their reasons
     const unverifiedDocuments = getUnverifiedDocuments(driver);
