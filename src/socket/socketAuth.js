@@ -15,11 +15,11 @@ const { tokenTypes } = require('../config/tokens');
  *   - socket.userRole ('driver' | 'rider')
  *   - socket.user     (Mongoose document)
  */
+/* eslint-disable no-param-reassign */
 const socketAuthMiddleware = async (socket, next) => {
   try {
     const token =
-      socket.handshake.auth.token ||
-      (socket.handshake.headers.authorization || '').replace('Bearer ', '').trim();
+      socket.handshake.auth.token || (socket.handshake.headers.authorization || '').replace('Bearer ', '').trim();
 
     if (!token) {
       return next(new Error('Authentication error: No token provided'));
@@ -28,7 +28,7 @@ const socketAuthMiddleware = async (socket, next) => {
     let payload;
     try {
       payload = jwt.verify(token, config.jwt.secret);
-    } catch {
+    } catch (error) {
       return next(new Error('Authentication error: Invalid or expired token'));
     }
 
@@ -58,5 +58,6 @@ const socketAuthMiddleware = async (socket, next) => {
     return next(new Error('Authentication error'));
   }
 };
+/* eslint-enable no-param-reassign */
 
 module.exports = { socketAuthMiddleware };
