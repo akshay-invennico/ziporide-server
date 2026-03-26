@@ -51,9 +51,33 @@ const deleteUserById = async (userId) => {
   return user;
 };
 
+const updatePassword = async (userId, currentPassword, newPassword) => {
+  const user = await User.findById(userId).select('+password');
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  if (!user.password) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'User does not have a password set');
+  }
+
+  const isCurrentPasswordValid = await user.isPasswordMatch(currentPassword);
+  if (!isCurrentPasswordValid) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, 'Current password is incorrect');
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  // Return user without password
+  const userWithoutPassword = await User.findById(userId);
+  return userWithoutPassword;
+};
+
 module.exports = {
   getUserById,
   getUserByPhone,
   updateUserById,
   deleteUserById,
+  updatePassword,
 };

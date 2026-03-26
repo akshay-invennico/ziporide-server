@@ -27,11 +27,11 @@ const getUser = catchAsync(async (req, res) => {
 });
 
 const updateUser = catchAsync(async (req, res) => {
-  const user = await userService.updateUserById(req.params.userId, req.body);
+  await userService.updateUserById(req.params.userId, req.body);
   res.status(httpStatus.OK).send({
     success: true,
+    statusCode: httpStatus.OK,
     message: 'User updated successfully',
-    data: { user },
   });
 });
 
@@ -44,9 +44,21 @@ const deleteUser = catchAsync(async (req, res) => {
   });
 });
 
+const updatePassword = catchAsync(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  await userService.updatePassword(req.user._id, currentPassword, newPassword);
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Password updated successfully',
+  });
+});
+
 module.exports = {
   getMe,
   getUser,
   updateUser,
   deleteUser,
+  updatePassword,
 };
