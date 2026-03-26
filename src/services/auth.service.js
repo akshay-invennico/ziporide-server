@@ -40,6 +40,10 @@ const sendOtp = async (phone, countryCode) => {
     if (user.status === 'blocked') {
       throw new ApiError(httpStatus.FORBIDDEN, 'Your account has been blocked. Please contact support.');
     }
+
+    if (user.status === 'suspended') {
+      throw new ApiError(httpStatus.FORBIDDEN, 'Your account has been suspended. Please contact support.');
+    }
     user.otp = otp;
     user.otpExpiresAt = otpExpiresAt;
     await user.save();

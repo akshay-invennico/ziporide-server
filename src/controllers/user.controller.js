@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { userService } = require('../services');
+const pick = require('../utils/pick');
 
 const getMe = catchAsync(async (req, res) => {
   const { user } = req;
@@ -35,9 +36,26 @@ const updateUser = catchAsync(async (req, res) => {
   });
 });
 
-const deleteUser = catchAsync(async (req, res) => {
+const initiateDeleteAccount = catchAsync(async (req, res) => {
   const { deleteReason } = req.body;
-  await userService.deleteUserById(req.user, deleteReason);
+  const result = await userService.initiateAccountDeletion(req.user, deleteReason);
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: result.message,
+    data: {
+      maskedPhone: result.maskedPhone,
+    },
+  });
+});
+
+/**
+ * Verify OTP and delete account
+ */
+const verifyDeleteAccount = catchAsync(async (req, res) => {
+  const { otp } = req.body;
+  await userService.deleteUserById(req.user, otp);
+
   res.status(httpStatus.OK).send({
     success: true,
     statusCode: httpStatus.OK,
@@ -56,10 +74,42 @@ const updatePassword = catchAsync(async (req, res) => {
   });
 });
 
+const getUsers = catchAsync(async (req, res) => {
+  const filter = {
+    ...pick(req.query, ['status', 'rating', 'minSpend', 'maxSpend', 'minTrips', 'maxTrips']),
+  };
+  const options = pick(req.query, ['sortBy', 'limit', 'page']);
+  const result = await userService.queryUsers(filter, options);
+  res.send({
+    success: true,
+    message: 'Users retrieved successfully',
+    data: result,
+  });
+});
+
+const updateRidersStatus = catchAsync(async (req, res) => {
+  const { riderIds, status, suspendReason } = req.body;
+  const result = await userService.bulkUpdateRiderStatus(riderIds, status, suspendReason);
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: `Rider status updated to ${status} successfully`,
+    data: {
+      totalRequested: riderIds.length,
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount,
+      status: result.status,
+    },
+  });
+});
+
 module.exports = {
   getMe,
   getUser,
   updateUser,
-  deleteUser,
   updatePassword,
+  getUsers,
+  initiateDeleteAccount,
+  verifyDeleteAccount,
+  updateRidersStatus,
 };
