@@ -27,12 +27,34 @@ const getUserByPhone = async (phone, countryCode) => {
  * @param {Object} updateBody
  * @returns {Promise<User>}
  */
-const updateUserById = async (userId, updateBody) => {
-  const user = await getUserById(userId);
+const updateUserById = async (user, updateBody) => {
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
-  Object.assign(user, updateBody);
+
+  // Handle field mappings based on user type
+  const mappedUpdateBody = { ...updateBody };
+
+  if (user.constructor.modelName === 'Driver') {
+    // Map profile to profilePhotoUrl for Driver
+    if (mappedUpdateBody.profile && !mappedUpdateBody.profilePhotoUrl) {
+      mappedUpdateBody.profilePhotoUrl = mappedUpdateBody.profile;
+      delete mappedUpdateBody.profile;
+    }
+    // Map postCode to address.postcode for Driver
+    if (mappedUpdateBody.postCode) {
+      mappedUpdateBody.address = {
+        ...(user.address || {}),
+        postcode: mappedUpdateBody.postCode,
+      };
+      delete mappedUpdateBody.postCode;
+    }
+  } else {
+    // For User model (rider/admin), profile field stays as is
+    // No field mapping needed
+  }
+
+  Object.assign(user, mappedUpdateBody);
   await user.save();
   return user;
 };
