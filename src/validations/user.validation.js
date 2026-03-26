@@ -13,8 +13,12 @@ const createUser = {
 
 const getUsers = {
   query: Joi.object().keys({
-    name: Joi.string(),
-    role: Joi.string(),
+    status: Joi.string().valid('active', 'suspended'),
+    rating: Joi.string().valid('5', '4', '3'),
+    minSpend: Joi.number().min(0),
+    maxSpend: Joi.number().min(0),
+    minTrips: Joi.number().integer().min(0),
+    maxTrips: Joi.number().integer().min(0),
     sortBy: Joi.string(),
     limit: Joi.number().integer(),
     page: Joi.number().integer(),

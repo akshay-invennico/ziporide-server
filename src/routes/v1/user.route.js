@@ -7,6 +7,7 @@ const userController = require('../../controllers/user.controller');
 const router = express.Router();
 
 router
+  .get('/rider', auth(), validate(userValidation.getUsers), userController.getUsers)
   .get('/me', auth(), userController.getMe)
   .patch('/password', auth(), validate(userValidation.updatePassword), userController.updatePassword);
 
