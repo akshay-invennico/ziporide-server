@@ -66,10 +66,17 @@ const createRide = async (riderId, rideData) => {
     throw new ApiError(httpStatus.BAD_REQUEST, 'A payment method is required to book a ride');
   }
 
+  // Initialize stop status tracking for each stop
+  const stopsStatus = stops.map((_, index) => ({
+    stopIndex: index,
+    status: 'pending',
+  }));
+
   const ride = await Ride.create({
     rider: riderId,
     pickup,
     stops,
+    stopsStatus,
     destination,
     vehicleType: category.vehicleType,
     category: categoryId,
@@ -280,8 +287,14 @@ const driverArrived = async (rideId, driverId) => {
 /**
  * Driver verifies the pickup OTP to start the ride.
  * Transitions ride from driver_arrived → in_progress.
+ *
+ * @param {string} rideId
+ * @param {string} driverId
+ * @param {string} otp        – 4-digit pickup OTP
+ * @param {number} [waitingTime=0] – chargeable waiting minutes sent by frontend
+ *   (frontend already subtracts the free waiting window; this is only the paid portion)
  */
-const verifyOtpAndStartRide = async (rideId, driverId, otp) => {
+const verifyOtpAndStartRide = async (rideId, driverId, otp, waitingTime = 0) => {
   const ride = await Ride.findById(rideId);
 
   if (!ride) {
@@ -297,6 +310,20 @@ const verifyOtpAndStartRide = async (rideId, driverId, otp) => {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid OTP. Please check and try again.');
   }
 
+  // Calculate waiting charge if chargeable waiting time was sent
+  if (waitingTime > 0) {
+    const pricing = await Pricing.findOne();
+    if (!pricing) {
+      throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Pricing configuration not found');
+    }
+
+    const waitingCharge = _round(waitingTime * pricing.waitingCharge);
+
+    ride.fare.waitingMinutes = waitingTime;
+    ride.fare.waitingCharge = waitingCharge;
+    ride.fare.totalFare = _round(ride.fare.totalFare + waitingCharge);
+  }
+
   ride.status = 'in_progress';
   ride.rideTimestamps.startedAt = new Date();
   await ride.save();
@@ -307,7 +334,115 @@ const verifyOtpAndStartRide = async (rideId, driverId, otp) => {
       const { getIO } = require('../socket');
       getIO().to(`user:${ride.rider.toString()}`).emit('ride:started', {
         rideId: ride._id,
+        waitingCharge: ride.fare.waitingCharge,
         message: 'Your ride has started. Enjoy your trip!',
+      });
+    } catch {
+      // socket may not be available in tests
+    }
+  });
+
+  return ride;
+};
+
+/**
+ * Driver marks arrival at an intermediate stop.
+ * Stops must be arrived at in order (0, 1, 2, …).
+ * Only allowed when ride is in_progress.
+ */
+const arrivedAtStop = async (rideId, driverId, stopIndex) => {
+  const ride = await Ride.findById(rideId);
+
+  if (!ride) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
+  }
+  if (!ride.driver || ride.driver.toString() !== driverId.toString()) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You are not the assigned driver for this ride');
+  }
+  if (ride.status !== 'in_progress') {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Cannot update stop — ride status is '${ride.status}'`);
+  }
+  if (stopIndex < 0 || stopIndex >= ride.stops.length) {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Invalid stop index: ${stopIndex}`);
+  }
+
+  // Ensure stops are arrived at in order
+  const stopEntry = ride.stopsStatus.find((s) => s.stopIndex === stopIndex);
+  if (!stopEntry) {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Stop ${stopIndex} not found in stops status`);
+  }
+  if (stopEntry.status === 'arrived') {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Already arrived at stop ${stopIndex + 1}`);
+  }
+
+  // All previous stops must be arrived
+  for (let i = 0; i < stopIndex; i++) {
+    const prev = ride.stopsStatus.find((s) => s.stopIndex === i);
+    if (!prev || prev.status !== 'arrived') {
+      throw new ApiError(httpStatus.BAD_REQUEST, `Must arrive at stop ${i + 1} before stop ${stopIndex + 1}`);
+    }
+  }
+
+  stopEntry.status = 'arrived';
+  stopEntry.arrivedAt = new Date();
+  ride.markModified('stopsStatus');
+  await ride.save();
+
+  // Notify rider
+  setImmediate(() => {
+    try {
+      const { getIO } = require('../socket');
+      getIO().to(`user:${ride.rider.toString()}`).emit('ride:arrived_at_stop', {
+        rideId: ride._id,
+        stopIndex,
+        message: `Driver has arrived at stop ${stopIndex + 1}.`,
+      });
+    } catch {
+      // socket may not be available in tests
+    }
+  });
+
+  return ride;
+};
+
+/**
+ * Driver marks arrival at the destination (drop location).
+ * All intermediate stops must be completed first.
+ * Only allowed when ride is in_progress.
+ */
+const arrivedAtDestination = async (rideId, driverId) => {
+  const ride = await Ride.findById(rideId);
+
+  if (!ride) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
+  }
+  if (!ride.driver || ride.driver.toString() !== driverId.toString()) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You are not the assigned driver for this ride');
+  }
+  if (ride.status !== 'in_progress') {
+    throw new ApiError(httpStatus.BAD_REQUEST, `Cannot mark destination arrived — ride status is '${ride.status}'`);
+  }
+  if (ride.destinationArrived) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Already arrived at destination');
+  }
+
+  // All stops must be arrived first
+  const pendingStops = ride.stopsStatus.filter((s) => s.status !== 'arrived');
+  if (pendingStops.length > 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'All intermediate stops must be completed before arriving at destination');
+  }
+
+  ride.destinationArrived = true;
+  ride.rideTimestamps.destinationArrivedAt = new Date();
+  await ride.save();
+
+  // Notify rider
+  setImmediate(() => {
+    try {
+      const { getIO } = require('../socket');
+      getIO().to(`user:${ride.rider.toString()}`).emit('ride:arrived_at_destination', {
+        rideId: ride._id,
+        message: 'Driver has arrived at the destination.',
       });
     } catch {
       // socket may not be available in tests
@@ -320,6 +455,7 @@ const verifyOtpAndStartRide = async (rideId, driverId, otp) => {
 /**
  * Driver completes the ride.
  * Transitions ride from in_progress → completed.
+ * All stops must be arrived and destination must be reached.
  * Captures the actual fare from the payment hold.
  */
 const completeRide = async (rideId, driverId) => {
@@ -333,6 +469,17 @@ const completeRide = async (rideId, driverId) => {
   }
   if (ride.status !== 'in_progress') {
     throw new ApiError(httpStatus.BAD_REQUEST, `Cannot complete ride — ride status is '${ride.status}'`);
+  }
+
+  // Ensure all stops have been arrived at
+  const pendingStops = ride.stopsStatus.filter((s) => s.status !== 'arrived');
+  if (pendingStops.length > 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'All stops must be completed before finishing the ride');
+  }
+
+  // Ensure destination has been reached
+  if (!ride.destinationArrived) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Must arrive at destination before completing the ride');
   }
 
   ride.status = 'completed';
@@ -543,6 +690,8 @@ module.exports = {
   cancelRide,
   driverArrived,
   verifyOtpAndStartRide,
+  arrivedAtStop,
+  arrivedAtDestination,
   completeRide,
   cancelRideByDriver,
   retryDispatch,

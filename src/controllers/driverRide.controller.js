@@ -127,7 +127,8 @@ const arrivedAtPickup = catchAsync(async (req, res) => {
  * Body: { otp: string }
  */
 const verifyOtp = catchAsync(async (req, res) => {
-  const ride = await rideService.verifyOtpAndStartRide(req.params.rideId, req.user.id, req.body.otp);
+  const { otp, waitingTime } = req.body;
+  const ride = await rideService.verifyOtpAndStartRide(req.params.rideId, req.user.id, otp, waitingTime);
 
   res.status(httpStatus.OK).send({
     success: true,
@@ -137,9 +138,43 @@ const verifyOtp = catchAsync(async (req, res) => {
 });
 
 /**
+ * POST /v1/driver/rides/:rideId/stop/:stopIndex/arrived
+ *
+ * Driver marks arrival at an intermediate stop.
+ * Stops must be arrived at in sequential order (0, 1, 2, …).
+ * Only allowed when ride is in_progress.
+ */
+const arrivedAtStop = catchAsync(async (req, res) => {
+  const ride = await rideService.arrivedAtStop(req.params.rideId, req.user.id, Number(req.params.stopIndex));
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: `Arrived at stop ${Number(req.params.stopIndex) + 1}`,
+    data: { ride },
+  });
+});
+
+/**
+ * POST /v1/driver/rides/:rideId/destination/arrived
+ *
+ * Driver marks arrival at the drop-off / destination.
+ * All intermediate stops must be completed first.
+ */
+const arrivedAtDestination = catchAsync(async (req, res) => {
+  const ride = await rideService.arrivedAtDestination(req.params.rideId, req.user.id);
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Arrived at destination',
+    data: { ride },
+  });
+});
+
+/**
  * POST /v1/driver/rides/:rideId/complete
  *
  * Driver marks the ride as completed at the destination.
+ * All stops and destination must be reached first.
  * Transitions ride from in_progress → completed.
  * Triggers payment capture asynchronously.
  */
@@ -178,6 +213,8 @@ module.exports = {
   getDriverRide,
   arrivedAtPickup,
   verifyOtp,
+  arrivedAtStop,
+  arrivedAtDestination,
   completeRide,
   cancelRide,
 };

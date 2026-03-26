@@ -24,6 +24,8 @@ const fareBreakdownSchema = new mongoose.Schema(
     timeFare: { type: Number, default: 0 },
     surgeMultiplier: { type: Number, default: 1 },
     cancellationFee: { type: Number, default: 0 },
+    waitingMinutes: { type: Number, default: 0 },
+    waitingCharge: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
     totalFare: { type: Number, default: 0 },
     currency: { type: String, enum: ['GBP'], default: 'GBP' },
@@ -60,6 +62,19 @@ const cancellationSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const stopStatusSchema = new mongoose.Schema(
+  {
+    stopIndex: { type: Number, required: true },
+    status: {
+      type: String,
+      enum: ['pending', 'arrived'],
+      default: 'pending',
+    },
+    arrivedAt: { type: Date },
+  },
+  { _id: false }
+);
+
 const rideTimestampsSchema = new mongoose.Schema(
   {
     bookedAt: { type: Date },
@@ -68,6 +83,7 @@ const rideTimestampsSchema = new mongoose.Schema(
     startedAt: { type: Date },
     completedAt: { type: Date },
     cancelledAt: { type: Date },
+    destinationArrivedAt: { type: Date },
   },
   { _id: false }
 );
@@ -97,6 +113,14 @@ const rideSchema = new mongoose.Schema(
     stops: {
       type: [locationPointSchema],
       default: [],
+    },
+    stopsStatus: {
+      type: [stopStatusSchema],
+      default: [],
+    },
+    destinationArrived: {
+      type: Boolean,
+      default: false,
     },
     destination: {
       type: locationPointSchema,

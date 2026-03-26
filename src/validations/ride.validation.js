@@ -118,6 +118,22 @@ const verifyOtp = {
     otp: Joi.string().length(4).required().messages({
       'string.length': 'OTP must be exactly 4 digits',
     }),
+    waitingTime: Joi.number().min(0).optional().default(0).messages({
+      'number.min': 'Waiting time cannot be negative',
+    }),
+  }),
+};
+
+const arrivedAtStop = {
+  params: Joi.object().keys({
+    rideId: Joi.string().required(),
+    stopIndex: Joi.number().integer().min(0).required(),
+  }),
+};
+
+const arrivedAtDestination = {
+  params: Joi.object().keys({
+    rideId: Joi.string().required(),
   }),
 };
 
@@ -185,6 +201,8 @@ module.exports = {
   getDriverRides,
   arrivedAtPickup,
   verifyOtp,
+  arrivedAtStop,
+  arrivedAtDestination,
   completeRide,
   driverCancelRide,
 };

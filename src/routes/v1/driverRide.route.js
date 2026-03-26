@@ -59,8 +59,29 @@ router.post('/:rideId/arrived', validate(rideValidation.arrivedAtPickup), driver
 router.post('/:rideId/verify/otp', validate(rideValidation.verifyOtp), driverRideController.verifyOtp);
 
 /**
+ * POST /v1/driver/rides/:rideId/stop/:stopIndex/arrived
+ * Driver marks arrival at an intermediate stop.
+ * Stops must be completed in order (0, 1, 2, …).
+ * Only allowed when ride is in_progress.
+ */
+router.post('/:rideId/stop/:stopIndex/arrived', validate(rideValidation.arrivedAtStop), driverRideController.arrivedAtStop);
+
+/**
+ * POST /v1/driver/rides/:rideId/destination/arrived
+ * Driver marks arrival at the drop-off / destination.
+ * All intermediate stops must be completed first.
+ * Only allowed when ride is in_progress.
+ */
+router.post(
+  '/:rideId/destination/arrived',
+  validate(rideValidation.arrivedAtDestination),
+  driverRideController.arrivedAtDestination
+);
+
+/**
  * POST /v1/driver/rides/:rideId/complete
  * Driver marks the ride as completed at the destination.
+ * All stops and destination must be reached first.
  * Transitions ride from in_progress → completed.
  * Triggers payment capture.
  */
