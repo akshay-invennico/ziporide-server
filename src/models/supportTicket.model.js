@@ -36,17 +36,6 @@ const supportTicketSchema = new mongoose.Schema(
       default: 'open',
       index: true,
     },
-    driverSnapshot: {
-      name: { type: String, trim: true },
-      phone: { type: String, trim: true },
-      email: { type: String, trim: true, lowercase: true },
-    },
-    rideSnapshot: {
-      rideNumber: { type: String, trim: true },
-      status: { type: String, trim: true },
-      bookedAt: { type: Date },
-      completedAt: { type: Date },
-    },
   },
   {
     timestamps: true,
