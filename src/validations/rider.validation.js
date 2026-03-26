@@ -31,6 +31,13 @@ const updateRidersStatus = {
       'any.only': 'Status must be either active or suspended',
       'any.required': 'Status is required',
     }),
+    suspendReason: Joi.when('status', {
+      is: 'suspended',
+      then: Joi.string().required().messages({
+        'any.required': 'Suspend reason is required when status is suspended',
+      }),
+      otherwise: Joi.string().optional(),
+    }),
   }),
 };
 

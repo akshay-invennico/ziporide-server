@@ -109,6 +109,10 @@ const userSchema = mongoose.Schema(
       type: String,
       maxlength: 500,
     },
+    suspendReason: {
+      type: String,
+      maxlength: 500,
+    },
   },
   {
     timestamps: true,

@@ -88,8 +88,8 @@ const getUsers = catchAsync(async (req, res) => {
 });
 
 const updateRidersStatus = catchAsync(async (req, res) => {
-  const { riderIds, status } = req.body;
-  const result = await userService.bulkUpdateRiderStatus(riderIds, status);
+  const { riderIds, status, suspendReason } = req.body;
+  const result = await userService.bulkUpdateRiderStatus(riderIds, status, suspendReason);
 
   res.status(httpStatus.OK).send({
     success: true,

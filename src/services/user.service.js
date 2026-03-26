@@ -294,22 +294,31 @@ const queryUsers = async (filter, options) => {
  * Bulk update rider status
  * @param {Array} riderIds - Array of rider IDs
  * @param {string} status - New status ('active' or 'suspended')
+ * @param {string} suspendReason - Reason for suspension (required when status is 'suspended')
  * @returns {Promise<Object>} - Update result
  */
-const bulkUpdateRiderStatus = async (riderIds, status) => {
+const bulkUpdateRiderStatus = async (riderIds, status, suspendReason) => {
   const validIds = riderIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
   if (validIds.length === 0) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'No valid rider IDs provided');
+  }
+
+  const updateData = {
+    status,
+    updatedAt: new Date(),
+  };
+
+  if (status === 'suspended' && suspendReason) {
+    updateData.suspendReason = suspendReason;
+  } else if (status === 'active') {
+    updateData.suspendReason = undefined;
   }
 
   const result = await User.updateMany(
     {
       _id: { $in: validIds },
     },
-    {
-      status,
-      updatedAt: new Date(),
-    }
+    updateData
   );
 
   return {
