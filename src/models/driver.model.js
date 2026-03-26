@@ -129,6 +129,10 @@ const driverSchema = new mongoose.Schema(
       default: 'pending',
     },
 
+    rejectedReason: {
+      type: String,
+    },
+
     isPhoneVerified: {
       type: Boolean,
       default: false,
