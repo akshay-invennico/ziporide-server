@@ -1,8 +1,7 @@
 const httpStatus = require('http-status');
 const mongoose = require('mongoose');
-const { Ride, Rating, User } = require('../models');
+const { Ride, Rating } = require('../models');
 const ApiError = require('../utils/ApiError');
-const logger = require('../config/logger');
 
 /**
  * Derive the trip stage at time of cancellation from ride timestamps.
@@ -84,11 +83,7 @@ const getTripStats = async (driverId) => {
         },
         tripsLastWeek: {
           $sum: {
-            $cond: [
-              { $and: [{ $gte: ['$createdAt', lastWeekStart] }, { $lt: ['$createdAt', lastWeekEnd] }] },
-              1,
-              0,
-            ],
+            $cond: [{ $and: [{ $gte: ['$createdAt', lastWeekStart] }, { $lt: ['$createdAt', lastWeekEnd] }] }, 1, 0],
           },
         },
       },
@@ -153,9 +148,9 @@ const getDriverTrips = async (driverId, filter = {}, options = {}) => {
     },
     rider: ride.rider
       ? {
-        id: ride.rider._id,
-        name: ride.rider.name,
-      }
+          id: ride.rider._id,
+          name: ride.rider.name,
+        }
       : null,
     ratingStars: ride.rating?.stars || null,
     createdAt: ride.createdAt,
@@ -240,10 +235,10 @@ const getDriverTripDetails = async (driverId, rideId) => {
     vehicleType: ride.vehicleType,
     category: ride.category
       ? {
-        name: ride.category.name,
-        vehicleType: ride.category.vehicleType,
-        categoryIcon: ride.category.categoryIcon,
-      }
+          name: ride.category.name,
+          vehicleType: ride.category.vehicleType,
+          categoryIcon: ride.category.categoryIcon,
+        }
       : null,
     pickup: ride.pickup,
     stops: ride.stops,

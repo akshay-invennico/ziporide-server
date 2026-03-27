@@ -1,5 +1,6 @@
 const httpStatus = require('http-status');
 const moment = require('moment');
+const mongoose = require('mongoose');
 const { Driver, Token, User, Ride, VehicleCategory } = require('../models');
 const ApiError = require('../utils/ApiError');
 const twilioService = require('./twilio.service');
@@ -187,8 +188,8 @@ const getAllDrivers = async (options) => {
   const filter = {};
 
   if (status) {
-    if (status === 'active') {
-      filter.status = 'approved';
+    if (status === 'approvedDrivers') {
+      filter.status = { $in: ['approved', 'suspended'] };
     } else {
       filter.status = status;
     }
@@ -493,6 +494,44 @@ const getVehicleTypes = async () => {
   return categories;
 };
 
+/**
+ * Bulk update driver status
+ * @param {Array} driverIds - Array of driver IDs
+ * @param {string} status - New status ('approved' or 'suspended')
+ * @param {string} suspendReason - Reason for suspension (required when status is 'suspended')
+ * @returns {Promise<Object>} - Update result
+ */
+const bulkUpdateDriverStatus = async (driverIds, status, suspendReason) => {
+  const validIds = driverIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
+  if (validIds.length === 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'No valid driver IDs provided');
+  }
+
+  const updateData = {
+    status,
+    updatedAt: new Date(),
+  };
+
+  if (status === 'suspended' && suspendReason) {
+    updateData.suspendReason = suspendReason;
+  } else if (status === 'approved') {
+    updateData.suspendReason = undefined;
+  }
+
+  const result = await Driver.updateMany(
+    {
+      _id: { $in: validIds },
+    },
+    updateData
+  );
+
+  return {
+    matchedCount: result.matchedCount,
+    modifiedCount: result.modifiedCount,
+    status,
+  };
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -507,4 +546,5 @@ module.exports = {
   verifyDocument,
   updateDriverStatus,
   getVehicleTypes,
+  bulkUpdateDriverStatus,
 };

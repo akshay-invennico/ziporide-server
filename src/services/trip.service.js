@@ -1,8 +1,6 @@
 const httpStatus = require('http-status');
-const { Ride, Rating, Driver, User } = require('../models');
+const { Ride, Rating } = require('../models');
 const ApiError = require('../utils/ApiError');
-const paymentService = require('./payment.service');
-const logger = require('../config/logger');
 
 /**
  * Get paginated list of trips (completed + cancelled) for a rider.
@@ -78,12 +76,12 @@ const getTripDetails = async (riderId, rideId) => {
       totalRatings: ride.driver.totalRatings,
       vehicle: ride.driver.vehicle
         ? {
-          make: ride.driver.vehicle.make,
-          model: ride.driver.vehicle.model,
-          colour: ride.driver.vehicle.colour,
-          registrationNumber: ride.driver.vehicle.registrationNumber,
-          type: ride.driver.vehicle.type,
-        }
+            make: ride.driver.vehicle.make,
+            model: ride.driver.vehicle.model,
+            colour: ride.driver.vehicle.colour,
+            registrationNumber: ride.driver.vehicle.registrationNumber,
+            type: ride.driver.vehicle.type,
+          }
         : null,
     };
   }
@@ -122,10 +120,10 @@ const getTripDetails = async (riderId, rideId) => {
     vehicleType: ride.vehicleType,
     category: ride.category
       ? {
-        name: ride.category.name,
-        vehicleType: ride.category.vehicleType,
-        categoryIcon: ride.category.categoryIcon,
-      }
+          name: ride.category.name,
+          vehicleType: ride.category.vehicleType,
+          categoryIcon: ride.category.categoryIcon,
+        }
       : null,
     pickup: ride.pickup,
     stops: ride.stops,
