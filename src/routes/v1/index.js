@@ -13,6 +13,7 @@ const ratingRoute = require('./rating.route');
 const inventoryRoute = require('./inventory.route');
 const pricingRoute = require('./pricing.route');
 const paymentRoute = require('./payment.route');
+const transactionRoute = require('./transaction.route');
 const riderRoute = require('./rider.route');
 const supportTicketRoute = require('./supportTicket.route');
 const dashboardRoute = require('./dashboard.route');
@@ -74,6 +75,10 @@ const defaultRoutes = [
   {
     path: '/payment',
     route: paymentRoute,
+  },
+  {
+    path: '/transactions',
+    route: transactionRoute,
   },
   {
     path: '/riders',

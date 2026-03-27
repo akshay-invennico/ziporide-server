@@ -14,6 +14,7 @@ module.exports.inventoryService = require('./inventory.service');
 module.exports.pricingService = require('./pricing.service');
 module.exports.mapboxService = require('./mapbox.service');
 module.exports.paymentService = require('./payment.service');
+module.exports.transactionService = require('./transaction.service');
 module.exports.supportTicketService = require('./supportTicket.service');
 module.exports.dashboardService = require('./dashboard.service');
 module.exports.tripService = require('./trip.service');
