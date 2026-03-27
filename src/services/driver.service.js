@@ -188,7 +188,11 @@ const getAllDrivers = async (options) => {
   const filter = {};
 
   if (status) {
-    if (status === 'approvedDrivers') {
+    if (status.includes(',')) {
+      // Handle multiple status values separated by commas
+      const statusValues = status.split(',').map((s) => s.trim());
+      filter.status = { $in: statusValues };
+    } else if (status === 'approvedDrivers') {
       filter.status = { $in: ['approved', 'suspended'] };
     } else {
       filter.status = status;
