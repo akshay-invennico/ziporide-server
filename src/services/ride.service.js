@@ -698,12 +698,28 @@ const getAllRidesForAdmin = async (filter = {}, options = {}) => {
     query.status = filter.status;
   }
 
-  return Ride.paginate(query, {
+  const result = await Ride.paginate(query, {
     page: options.page || 1,
     limit: options.limit || 10,
     sortBy: options.sortBy || 'createdAt:desc',
     populate: 'rider,driver',
   });
+
+  if (result.results && result.results.length > 0) {
+    await Ride.populate(result.results, [
+      {
+        path: 'rider',
+        select: 'name phone email',
+      },
+      {
+        path: 'driver',
+        select: 'name phone email vehicle',
+        model: 'Driver',
+      },
+    ]);
+  }
+
+  return result;
 };
 
 module.exports = {
