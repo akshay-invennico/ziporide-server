@@ -137,6 +137,22 @@ const getVehicleTypes = catchAsync(async (req, res) => {
   });
 });
 
+const updateDriversStatus = catchAsync(async (req, res) => {
+  const { driverIds, status, suspendReason } = req.body;
+  const result = await driverService.bulkUpdateDriverStatus(driverIds, status, suspendReason);
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: `Driver status updated to ${status} successfully`,
+    data: {
+      totalRequested: driverIds.length,
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount,
+      status: result.status,
+    },
+  });
+});
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -151,4 +167,5 @@ module.exports = {
   verifyDocument,
   updateDriverStatus,
   getVehicleTypes,
+  updateDriversStatus,
 };
