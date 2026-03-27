@@ -71,4 +71,11 @@ router.post('/:rideId/cancel', validate(rideValidation.cancelRide), rideControll
  */
 router.get('/admin/all', admin(), validate(rideValidation.getAdminRides), rideController.getAllRidesForAdmin);
 
+/**
+ * @route   GET /v1/ride/admin/:rideId
+ * @desc    Get single ride details by id (admin only)
+ * @access  Private (admin only)
+ */
+router.get('/admin/:rideId', admin(), validate(rideValidation.getAdminRide), rideController.getRideForAdmin);
+
 module.exports = router;

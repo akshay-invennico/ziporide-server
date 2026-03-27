@@ -89,6 +89,15 @@ const getAllRidesForAdmin = catchAsync(async (req, res) => {
   });
 });
 
+const getRideForAdmin = catchAsync(async (req, res) => {
+  const ride = await rideService.getRideByIdForAdmin(req.params.rideId);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Ride retrieved successfully',
+    data: { ride },
+  });
+});
+
 module.exports = {
   getRideOptions,
   createRide,
@@ -99,4 +108,5 @@ module.exports = {
   retryDispatch,
   getNearbyDrivers,
   getAllRidesForAdmin,
+  getRideForAdmin,
 };

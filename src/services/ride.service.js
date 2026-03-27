@@ -722,6 +722,23 @@ const getAllRidesForAdmin = async (filter = {}, options = {}) => {
   return result;
 };
 
+/**
+ * Get a single ride by id for admin (no access restrictions).
+ */
+const getRideByIdForAdmin = async (rideId) => {
+  const ride = await Ride.findById(rideId)
+    .populate('rider', 'name phone email')
+    .populate('driver', 'name phone email vehicle profilePhotoUrl currentLocation avgRating totalRatings')
+    .populate('category', 'name vehicleType seatCapacity')
+    .populate('paymentMethod');
+
+  if (!ride) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
+  }
+
+  return ride;
+};
+
 module.exports = {
   createRide,
   getRideById,
@@ -739,4 +756,5 @@ module.exports = {
   retryDispatch,
   getNearbyDrivers,
   getAllRidesForAdmin,
+  getRideByIdForAdmin,
 };
