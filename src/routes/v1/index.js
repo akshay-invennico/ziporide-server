@@ -15,6 +15,8 @@ const pricingRoute = require('./pricing.route');
 const paymentRoute = require('./payment.route');
 const riderRoute = require('./rider.route');
 const supportTicketRoute = require('./supportTicket.route');
+const tripRoute = require('./trip.route');
+const driverTripRoute = require('./driverTrip.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -79,6 +81,14 @@ const defaultRoutes = [
   {
     path: '/support/ticket',
     route: supportTicketRoute,
+  },
+  {
+    path: '/trips',
+    route: tripRoute,
+  },
+  {
+    path: '/driver/trips',
+    route: driverTripRoute,
   },
 ];
 
