@@ -189,7 +189,7 @@ const getAllDrivers = async (options) => {
 
   if (status) {
     if (status === 'active') {
-      filter.status = 'approved';
+      filter.status = { $in: ['approved', 'suspended'] };
     } else {
       filter.status = status;
     }
