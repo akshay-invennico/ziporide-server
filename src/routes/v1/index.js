@@ -16,6 +16,8 @@ const paymentRoute = require('./payment.route');
 const riderRoute = require('./rider.route');
 const supportTicketRoute = require('./supportTicket.route');
 const dashboardRoute = require('./dashboard.route');
+const tripRoute = require('./trip.route');
+const driverTripRoute = require('./driverTrip.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -84,6 +86,14 @@ const defaultRoutes = [
   {
     path: '/dashboard',
     route: dashboardRoute,
+  },
+  {
+    path: '/trips',
+    route: tripRoute,
+  },
+  {
+    path: '/driver/trips',
+    route: driverTripRoute,
   },
 ];
 
