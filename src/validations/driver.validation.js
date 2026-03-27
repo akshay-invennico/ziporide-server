@@ -85,7 +85,7 @@ const getAllDrivers = {
     limit: Joi.number().integer().min(1).max(100).default(10),
     sortBy: Joi.string().valid('createdAt', 'name', 'status', 'lastLoginAt', 'avgRating').default('createdAt'),
     sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
-    status: Joi.string().valid('pending', 'approved', 'rejected', 'suspended', 'active'),
+    status: Joi.string().valid('pending', 'approved', 'rejected', 'suspended', 'active', 'approvedDrivers'),
     isOnline: Joi.string().valid('true', 'false'),
     isSubscribed: Joi.string().valid('true', 'false'),
     minEarnings: Joi.number().min(0).optional(),
