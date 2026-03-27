@@ -188,6 +188,19 @@ const getNearbyDrivers = {
   }),
 };
 
+const getAdminRides = {
+  query: Joi.object().keys({
+    driverId: Joi.string().custom(objectId).optional(),
+    riderId: Joi.string().custom(objectId).optional(),
+    status: Joi.string()
+      .valid('searching', 'driver_allocated', 'driver_arrived', 'in_progress', 'completed', 'cancelled', 'no_drivers')
+      .optional(),
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(50).default(10),
+    sortBy: Joi.string().optional(),
+  }),
+};
+
 module.exports = {
   createRide,
   getRideOptions,
@@ -205,4 +218,5 @@ module.exports = {
   arrivedAtDestination,
   completeRide,
   driverCancelRide,
+  getAdminRides,
 };
