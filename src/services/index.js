@@ -15,3 +15,4 @@ module.exports.pricingService = require('./pricing.service');
 module.exports.mapboxService = require('./mapbox.service');
 module.exports.paymentService = require('./payment.service');
 module.exports.supportTicketService = require('./supportTicket.service');
+module.exports.dashboardService = require('./dashboard.service');
