@@ -122,6 +122,26 @@ const updateDriverStatus = {
   }),
 };
 
+const updateDriversStatus = {
+  body: Joi.object().keys({
+    driverIds: Joi.array().items(Joi.string().custom(objectId)).min(1).required().messages({
+      'array.min': 'At least one driver ID is required',
+      'any.required': 'Driver IDs are required',
+    }),
+    status: Joi.string().valid('approved', 'suspended').required().messages({
+      'any.only': 'Status must be either approved or suspended',
+      'any.required': 'Status is required',
+    }),
+    suspendReason: Joi.when('status', {
+      is: 'suspended',
+      then: Joi.string().required().messages({
+        'any.required': 'Suspend reason is required when status is suspended',
+      }),
+      otherwise: Joi.string().optional(),
+    }),
+  }),
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -135,4 +155,5 @@ module.exports = {
   getDriverById,
   verifyDocument,
   updateDriverStatus,
+  updateDriversStatus,
 };
