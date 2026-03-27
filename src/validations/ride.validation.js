@@ -195,6 +195,8 @@ const getAdminRides = {
     status: Joi.string()
       .valid('searching', 'driver_allocated', 'driver_arrived', 'in_progress', 'completed', 'cancelled', 'no_drivers')
       .optional(),
+    search: Joi.string().optional(),
+    dateFilter: Joi.string().valid('currentYear', 'currentMonth', 'currentWeek').optional(),
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(50).default(10),
     sortBy: Joi.string().optional(),

@@ -698,6 +698,58 @@ const getAllRidesForAdmin = async (filter = {}, options = {}) => {
     query.status = filter.status;
   }
 
+  // Search functionality
+  if (filter.search) {
+    query.$or = [
+      { rideNumber: { $regex: filter.search, $options: 'i' } },
+      { 'driver.name': { $regex: filter.search, $options: 'i' } },
+      { 'rider.name': { $regex: filter.search, $options: 'i' } },
+    ];
+  }
+
+  // Date filtering
+  if (filter.dateFilter) {
+    const now = new Date();
+    let startOfWeek;
+    let endOfWeek;
+    let dayOfWeek;
+
+    switch (filter.dateFilter) {
+      case 'currentYear':
+        query.createdAt = {
+          $gte: new Date(now.getFullYear(), 0, 1), // Jan 1 of current year
+          $lt: new Date(now.getFullYear() + 1, 0, 1), // Jan 1 of next year
+        };
+        break;
+
+      case 'currentMonth':
+        query.createdAt = {
+          $gte: new Date(now.getFullYear(), now.getMonth(), 1), // 1st of current month
+          $lt: new Date(now.getFullYear(), now.getMonth() + 1, 1), // 1st of next month
+        };
+        break;
+
+      case 'currentWeek':
+        dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+        startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - dayOfWeek);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        query.createdAt = {
+          $gte: startOfWeek,
+          $lt: endOfWeek,
+        };
+        break;
+
+      default:
+        break;
+    }
+  }
+
   const result = await Ride.paginate(query, {
     page: options.page || 1,
     limit: options.limit || 10,
