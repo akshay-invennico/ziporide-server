@@ -1,5 +1,5 @@
 const express = require('express');
-const { auth } = require('../../middlewares/auth');
+const { auth, admin } = require('../../middlewares/auth');
 const validate = require('../../middlewares/validate');
 const rideValidation = require('../../validations/ride.validation');
 const rideController = require('../../controllers/ride.controller');
@@ -63,5 +63,19 @@ router.post('/:rideId/retry', validate(rideValidation.retryDispatch), rideContro
  * @access  Private (rider)
  */
 router.post('/:rideId/cancel', validate(rideValidation.cancelRide), rideController.cancelRide);
+
+/**
+ * @route   GET /v1/ride/admin/all
+ * @desc    Get all rides with filters (admin only)
+ * @access  Private (admin only)
+ */
+router.get('/admin/all', admin(), validate(rideValidation.getAdminRides), rideController.getAllRidesForAdmin);
+
+/**
+ * @route   GET /v1/ride/admin/:rideId
+ * @desc    Get single ride details by id (admin only)
+ * @access  Private (admin only)
+ */
+router.get('/admin/:rideId', admin(), validate(rideValidation.getAdminRide), rideController.getRideForAdmin);
 
 module.exports = router;

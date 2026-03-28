@@ -680,6 +680,117 @@ const getNearbyDrivers = async (latitude, longitude, vehicleType) => {
   }));
 };
 
+/**
+ * Get all rides for admin with filtering capabilities.
+ * Admin can filter by driverId, riderId, or status.
+ */
+const getAllRidesForAdmin = async (filter = {}, options = {}) => {
+  const query = {};
+
+  // Apply filters if provided
+  if (filter.driverId) {
+    query.driver = filter.driverId;
+  }
+  if (filter.riderId) {
+    query.rider = filter.riderId;
+  }
+  if (filter.status) {
+    query.status = filter.status;
+  }
+
+  // Search functionality
+  if (filter.search) {
+    query.$or = [
+      { rideNumber: { $regex: filter.search, $options: 'i' } },
+      { 'driver.name': { $regex: filter.search, $options: 'i' } },
+      { 'rider.name': { $regex: filter.search, $options: 'i' } },
+    ];
+  }
+
+  // Date filtering
+  if (filter.dateFilter) {
+    const now = new Date();
+    let startOfWeek;
+    let endOfWeek;
+    let dayOfWeek;
+
+    switch (filter.dateFilter) {
+      case 'currentYear':
+        query.createdAt = {
+          $gte: new Date(now.getFullYear(), 0, 1), // Jan 1 of current year
+          $lt: new Date(now.getFullYear() + 1, 0, 1), // Jan 1 of next year
+        };
+        break;
+
+      case 'currentMonth':
+        query.createdAt = {
+          $gte: new Date(now.getFullYear(), now.getMonth(), 1), // 1st of current month
+          $lt: new Date(now.getFullYear(), now.getMonth() + 1, 1), // 1st of next month
+        };
+        break;
+
+      case 'currentWeek':
+        dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+        startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - dayOfWeek);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        query.createdAt = {
+          $gte: startOfWeek,
+          $lt: endOfWeek,
+        };
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  const result = await Ride.paginate(query, {
+    page: options.page || 1,
+    limit: options.limit || 10,
+    sortBy: options.sortBy || 'createdAt:desc',
+    populate: 'rider,driver',
+  });
+
+  if (result.results && result.results.length > 0) {
+    await Ride.populate(result.results, [
+      {
+        path: 'rider',
+        select: 'name phone email',
+      },
+      {
+        path: 'driver',
+        select: 'name phone email vehicle',
+        model: 'Driver',
+      },
+    ]);
+  }
+
+  return result;
+};
+
+/**
+ * Get a single ride by id for admin (no access restrictions).
+ */
+const getRideByIdForAdmin = async (rideId) => {
+  const ride = await Ride.findById(rideId)
+    .populate('rider', 'name phone email')
+    .populate('driver', 'name phone email vehicle profilePhotoUrl currentLocation avgRating totalRatings')
+    .populate('category', 'name vehicleType seatCapacity')
+    .populate('paymentMethod');
+
+  if (!ride) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
+  }
+
+  return ride;
+};
+
 module.exports = {
   createRide,
   getRideById,
@@ -696,4 +807,6 @@ module.exports = {
   cancelRideByDriver,
   retryDispatch,
   getNearbyDrivers,
+  getAllRidesForAdmin,
+  getRideByIdForAdmin,
 };
