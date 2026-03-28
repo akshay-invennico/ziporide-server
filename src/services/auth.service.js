@@ -3,6 +3,7 @@ const path = require('path');
 const httpStatus = require('http-status');
 const moment = require('moment');
 const { User } = require('../models');
+const Operator = require('../models/operator.model');
 const ApiError = require('../utils/ApiError');
 const twilioService = require('./twilio.service');
 const { tokenTypes } = require('../config/tokens');
@@ -134,31 +135,27 @@ const refreshAuth = async (refreshToken) => {
 /**
  * @param {string} email
  * @param {string} password
- * @returns {Promise<User>}
+ * @returns {Promise<Operator>}
  */
 const adminLogin = async (email, password) => {
-  const user = await User.findOne({ email }).select('+password');
+  const operator = await Operator.findOne({ email }).select('+password');
 
-  if (!user) {
+  if (!operator) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Incorrect email or password');
   }
 
-  if (!user.isAdminUser()) {
-    throw new ApiError(httpStatus.FORBIDDEN, 'Access denied. Admin privileges required.');
+  if (operator.status !== 'active') {
+    throw new ApiError(httpStatus.FORBIDDEN, 'Your account is not active. Please contact administrator.');
   }
 
-  if (user.status === 'blocked') {
-    throw new ApiError(httpStatus.FORBIDDEN, 'Your account has been blocked. Please contact support.');
-  }
-
-  if (!(await user.isPasswordMatch(password))) {
+  if (!(await operator.isPasswordMatch(password))) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Incorrect email or password');
   }
 
-  user.lastLoginAt = new Date();
-  await user.save();
+  operator.lastLoginAt = new Date();
+  await operator.save();
 
-  return user;
+  return operator;
 };
 
 /**
@@ -166,18 +163,18 @@ const adminLogin = async (email, password) => {
  * @returns {Promise}
  */
 const forgotPassword = async (email) => {
-  const user = await User.findOne({ email });
+  const operator = await Operator.findOne({ email });
 
-  if (!user) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'No user found with this email address');
+  if (!operator) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'No operator found with this email address');
   }
 
   const otp = generateOtp();
   const otpExpiresAt = moment().add(15, 'minutes').toDate();
 
-  user.otp = otp;
-  user.otpExpiresAt = otpExpiresAt;
-  await user.save();
+  operator.otp = otp;
+  operator.otpExpiresAt = otpExpiresAt;
+  await operator.save();
 
   // Read and render the OTP template
   const templatePath = path.join(__dirname, '../template/otp-verification.html');
@@ -186,7 +183,7 @@ const forgotPassword = async (email) => {
 
   // Replace template variables
   htmlTemplate = htmlTemplate
-    .replace(/{{userName}}/g, user.name || 'User')
+    .replace(/{{userName}}/g, operator.name || 'User')
     .replace(/{{otpCode}}/g, otp)
     .replace(/{{expiryMinutes}}/g, '15');
 
@@ -194,7 +191,7 @@ const forgotPassword = async (email) => {
   const subject = 'ZipoRide - Password Reset OTP';
   const text = `Your password reset OTP is: ${otp}. This OTP will expire in 15 minutes.`;
 
-  await emailService.sendEmail(user.email, subject, text, htmlTemplate);
+  await emailService.sendEmail(operator.email, subject, text, htmlTemplate);
 };
 
 /**
@@ -203,36 +200,35 @@ const forgotPassword = async (email) => {
  * @returns {Promise}
  */
 const resetPassword = async (email, newPassword) => {
-  const user = await User.findOne({ email });
+  const operator = await Operator.findOne({ email });
 
-  if (!user) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'No user found with this email address');
+  if (!operator) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'No operator found with this email address');
   }
 
-  user.password = newPassword;
-  user.otp = undefined;
-  user.otpExpiresAt = undefined;
-  await user.save();
+  operator.password = newPassword;
+  operator.otp = undefined;
+  operator.otpExpiresAt = undefined;
+  await operator.save();
 };
 
 const verifyOtpEmail = async (email, otp) => {
-  const user = await User.findOne({ email });
+  const operator = await Operator.findOne({ email });
 
-  if (!user) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'No user found with this email address');
+  if (!operator) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'No operator found with this email address');
   }
 
-  if (!user.isOtpValid(otp)) {
+  if (!operator.isOtpValid(otp)) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid or expired OTP');
   }
 
-  user.isPhoneVerified = true;
-  user.otp = undefined;
-  user.otpExpiresAt = undefined;
-  user.lastLoginAt = new Date();
-  await user.save();
+  operator.otp = undefined;
+  operator.otpExpiresAt = undefined;
+  operator.lastLoginAt = new Date();
+  await operator.save();
 
-  return user;
+  return operator;
 };
 
 module.exports = {

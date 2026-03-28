@@ -19,3 +19,4 @@ module.exports.supportTicketService = require('./supportTicket.service');
 module.exports.dashboardService = require('./dashboard.service');
 module.exports.tripService = require('./trip.service');
 module.exports.driverTripService = require('./driverTrip.service');
+module.exports.operatorService = require('./operator.service');

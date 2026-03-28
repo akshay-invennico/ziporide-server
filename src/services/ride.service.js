@@ -56,8 +56,12 @@ const createRide = async (riderId, rideData) => {
     timeFare,
     surgeMultiplier,
     cancellationFee: pricing?.cancellationFee || 0,
-    totalFare: estimatedFare || _round(Math.max((category.baseFare + distanceFare + timeFare) * surgeMultiplier, pricing?.minimumFare || 0)),
-    estimatedFare: estimatedFare || _round(Math.max((category.baseFare + distanceFare + timeFare) * surgeMultiplier, pricing?.minimumFare || 0)),
+    totalFare:
+      estimatedFare ||
+      _round(Math.max((category.baseFare + distanceFare + timeFare) * surgeMultiplier, pricing?.minimumFare || 0)),
+    estimatedFare:
+      estimatedFare ||
+      _round(Math.max((category.baseFare + distanceFare + timeFare) * surgeMultiplier, pricing?.minimumFare || 0)),
     currency: 'GBP',
   };
 
@@ -179,10 +183,7 @@ const cancelRide = async (rideId, riderId, cancellationData) => {
 
   const cancellableStatuses = ['searching', 'driver_allocated'];
   if (!cancellableStatuses.includes(ride.status)) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      `Ride cannot be cancelled at this stage (current status: '${ride.status}')`
-    );
+    throw new ApiError(httpStatus.BAD_REQUEST, `Ride cannot be cancelled at this stage (current status: '${ride.status}')`);
   }
 
   ride.status = 'cancelled';
@@ -392,11 +393,13 @@ const arrivedAtStop = async (rideId, driverId, stopIndex) => {
   setImmediate(() => {
     try {
       const { getIO } = require('../socket');
-      getIO().to(`user:${ride.rider.toString()}`).emit('ride:arrived_at_stop', {
-        rideId: ride._id,
-        stopIndex,
-        message: `Driver has arrived at stop ${stopIndex + 1}.`,
-      });
+      getIO()
+        .to(`user:${ride.rider.toString()}`)
+        .emit('ride:arrived_at_stop', {
+          rideId: ride._id,
+          stopIndex,
+          message: `Driver has arrived at stop ${stopIndex + 1}.`,
+        });
     } catch {
       // socket may not be available in tests
     }
@@ -530,10 +533,7 @@ const cancelRideByDriver = async (rideId, driverId, cancellationData) => {
 
   const cancellableStatuses = ['driver_allocated', 'driver_arrived'];
   if (!cancellableStatuses.includes(ride.status)) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      `Ride cannot be cancelled at this stage (current status: '${ride.status}')`
-    );
+    throw new ApiError(httpStatus.BAD_REQUEST, `Ride cannot be cancelled at this stage (current status: '${ride.status}')`);
   }
 
   ride.status = 'cancelled';
