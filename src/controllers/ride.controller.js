@@ -98,6 +98,15 @@ const getRideForAdmin = catchAsync(async (req, res) => {
   });
 });
 
+const cancelRideForAdmin = catchAsync(async (req, res) => {
+  const ride = await rideService.cancelRideByAdmin(req.params.rideId, req.body.cancelReason);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Ride cancelled successfully by admin',
+    data: { ride },
+  });
+});
+
 module.exports = {
   getRideOptions,
   createRide,
@@ -109,4 +118,5 @@ module.exports = {
   getNearbyDrivers,
   getAllRidesForAdmin,
   getRideForAdmin,
+  cancelRideForAdmin,
 };
