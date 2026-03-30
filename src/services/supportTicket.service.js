@@ -43,9 +43,33 @@ const createSupportTicket = async (driverId, rideId, ticketBody) => {
     description: ticketBody.description,
   });
 
-  return SupportTicket.findById(ticket._id)
+  const populatedTicket = await SupportTicket.findById(ticket._id)
     .populate('ride', 'rideNumber status paymentStatus')
     .populate('driver', 'name phone');
+
+  return {
+    id: populatedTicket.id,
+    ticketId: populatedTicket.ticketId,
+    cause: populatedTicket.cause,
+    description: populatedTicket.description,
+    status: populatedTicket.status,
+    createdAt: populatedTicket.createdAt,
+    ride: populatedTicket.ride
+      ? {
+          id: populatedTicket.ride.id,
+          rideNumber: populatedTicket.ride.rideNumber,
+          status: populatedTicket.ride.status,
+          paymentStatus: populatedTicket.ride.paymentStatus,
+        }
+      : null,
+    driver: populatedTicket.driver
+      ? {
+          id: populatedTicket.driver.id,
+          name: populatedTicket.driver.name,
+          phone: populatedTicket.driver.phone,
+        }
+      : null,
+  };
 };
 
 const getSupportTickets = async (requestUser, filter = {}, options = {}) => {
@@ -79,6 +103,7 @@ const getSupportTickets = async (requestUser, filter = {}, options = {}) => {
     cause: ticket.cause,
     description: ticket.description,
     status: ticket.status,
+    createdAt: ticket.createdAt,
     ride: ticket.ride
       ? {
           id: ticket.ride.id,
@@ -116,7 +141,29 @@ const getSupportTicketById = async (ticketId, requestUser) => {
     );
   }
 
-  return ticket;
+  return {
+    id: ticket.id,
+    ticketId: ticket.ticketId,
+    cause: ticket.cause,
+    description: ticket.description,
+    status: ticket.status,
+    createdAt: ticket.createdAt,
+    ride: ticket.ride
+      ? {
+          id: ticket.ride.id,
+          rideNumber: ticket.ride.rideNumber,
+          status: ticket.ride.status,
+          paymentStatus: ticket.ride.paymentStatus,
+        }
+      : null,
+    driver: ticket.driver
+      ? {
+          id: ticket.driver.id,
+          name: ticket.driver.name,
+          phone: ticket.driver.phone,
+        }
+      : null,
+  };
 };
 
 const updateSupportTicket = async (ticketId, requestUser, updateBody) => {
@@ -137,10 +184,33 @@ const updateSupportTicket = async (ticketId, requestUser, updateBody) => {
   ticket.status = updateBody.status;
 
   await ticket.save();
-
-  return SupportTicket.findById(ticket._id)
+  const populatedTicket = await SupportTicket.findById(ticket._id)
     .populate('ride', 'rideNumber status paymentStatus')
     .populate('driver', 'name phone');
+
+  return {
+    id: populatedTicket.id,
+    ticketId: populatedTicket.ticketId,
+    cause: populatedTicket.cause,
+    description: populatedTicket.description,
+    status: populatedTicket.status,
+    createdAt: populatedTicket.createdAt,
+    ride: populatedTicket.ride
+      ? {
+          id: populatedTicket.ride.id,
+          rideNumber: populatedTicket.ride.rideNumber,
+          status: populatedTicket.ride.status,
+          paymentStatus: populatedTicket.ride.paymentStatus,
+        }
+      : null,
+    driver: populatedTicket.driver
+      ? {
+          id: populatedTicket.driver.id,
+          name: populatedTicket.driver.name,
+          phone: populatedTicket.driver.phone,
+        }
+      : null,
+  };
 };
 
 module.exports = {
