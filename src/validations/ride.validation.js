@@ -35,21 +35,7 @@ const cancelRide = {
     rideId: Joi.string().required(),
   }),
   body: Joi.object().keys({
-    reason: Joi.string()
-      .valid(
-        'taking_too_long',
-        'driver_taking_too_long',
-        'wrong_location',
-        'incorrect_pickup_location',
-        'changed_mind',
-        'found_another_ride',
-        'ordered_by_mistake',
-        'driver_not_moving',
-        'driver_asked_to_cancel',
-        'safety_concerns',
-        'other'
-      )
-      .required(),
+    reason: Joi.string().required(),
     customReason: Joi.string()
       .trim()
       .max(300)
