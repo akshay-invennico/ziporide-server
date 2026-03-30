@@ -32,7 +32,7 @@ const getSupportTickets = catchAsync(async (req, res) => {
 });
 
 const getSupportTicketById = catchAsync(async (req, res) => {
-  const ticket = await supportTicketService.getSupportTicketById(req.params.ticketId, req.user.id);
+  const ticket = await supportTicketService.getSupportTicketById(req.params.ticketId, req.user);
 
   res.status(httpStatus.OK).send({
     status: true,
@@ -42,7 +42,7 @@ const getSupportTicketById = catchAsync(async (req, res) => {
 });
 
 const updateSupportTicket = catchAsync(async (req, res) => {
-  const ticket = await supportTicketService.updateSupportTicket(req.params.ticketId, req.user.id, req.body);
+  const ticket = await supportTicketService.updateSupportTicket(req.params.ticketId, req.user, req.body);
 
   res.status(httpStatus.OK).send({
     status: true,
