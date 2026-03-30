@@ -332,8 +332,106 @@ const getTripsOverTime = async (query) => {
   return result;
 };
 
+/**
+ * Get revenue analytics report
+ * @param {Object} query - Query parameters
+ * @returns {Promise<Array>} - Revenue analytics data
+ */
+const getRevenueAnalytics = async (query) => {
+  const { year = moment().year(), month = moment().month() + 1, type = 'month' } = query;
+
+  let groupBy;
+  let dateRange;
+  let labels;
+
+  if (type === 'daily') {
+    groupBy = { $dayOfMonth: '$createdAt' };
+    const startDate = moment()
+      .year(year)
+      .month(month - 1)
+      .startOf('month')
+      .toDate();
+    const endDate = moment()
+      .year(year)
+      .month(month - 1)
+      .endOf('month')
+      .toDate();
+    dateRange = { startDate, endDate };
+
+    // Create day labels for the month
+    const daysInMonth = moment()
+      .year(year)
+      .month(month - 1)
+      .daysInMonth();
+    labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  } else {
+    groupBy = type === 'month' ? { $month: '$createdAt' } : { $year: '$createdAt' };
+    const startDate = moment().year(year).startOf('year').toDate();
+    const endDate = moment().year(year).endOf('year').toDate();
+    dateRange = { startDate, endDate };
+
+    labels =
+      type === 'month'
+        ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        : [year.toString()];
+  }
+
+  const { startDate, endDate } = dateRange;
+
+  const revenueData = await Payment.aggregate([
+    {
+      $match: {
+        status: 'completed',
+        type: 'charge',
+        createdAt: { $gte: startDate, $lte: endDate },
+      },
+    },
+    {
+      $group: {
+        _id: groupBy,
+        totalRevenue: { $sum: '$amount' },
+        totalRides: { $sum: 1 },
+      },
+    },
+    {
+      $sort: { _id: 1 },
+    },
+  ]);
+
+  // Initialize result array
+  let result;
+  if (type === 'daily') {
+    result = labels.map((day) => ({ day, revenue: 0, rides: 0 }));
+  } else {
+    const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    result =
+      type === 'month'
+        ? monthLabels.map((monthLabel) => ({ month: monthLabel, revenue: 0, rides: 0 }))
+        : [{ month: year.toString(), revenue: 0, rides: 0 }];
+  }
+
+  // Populate revenue and rides data
+  revenueData.forEach((item) => {
+    let index;
+    if (type === 'daily') {
+      index = item._id - 1;
+    } else if (type === 'month') {
+      index = item._id - 1;
+    } else {
+      index = 0;
+    }
+    if (index >= 0 && index < result.length) {
+      result[index].revenue = item.totalRevenue;
+      result[index].rides = item.totalRides;
+    }
+  });
+
+  return result;
+};
+
 module.exports = {
   getDashboardSummary,
   getRiderDriverReport,
   getTripsOverTime,
+  getRevenueAnalytics,
 };

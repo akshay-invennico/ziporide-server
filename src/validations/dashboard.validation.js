@@ -33,8 +33,21 @@ const getTripsOverTime = {
   }),
 };
 
+const getRevenueAnalytics = {
+  query: Joi.object().keys({
+    year: Joi.number().integer().min(2020).max(2030).default(moment().year()),
+    month: Joi.number()
+      .integer()
+      .min(1)
+      .max(12)
+      .default(moment().month() + 1),
+    type: Joi.string().valid('month', 'year', 'daily').default('month'),
+  }),
+};
+
 module.exports = {
   getDashboardSummary,
   getRiderDriverReport,
   getTripsOverTime,
+  getRevenueAnalytics,
 };

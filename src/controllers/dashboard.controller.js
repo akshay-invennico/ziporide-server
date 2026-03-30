@@ -44,8 +44,23 @@ const getTripsOverTime = catchAsync(async (req, res) => {
   });
 });
 
+/**
+ * Get revenue analytics report
+ */
+const getRevenueAnalytics = catchAsync(async (req, res) => {
+  const report = await dashboardService.getRevenueAnalytics(req.query);
+
+  res.status(httpStatus.OK).send({
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Revenue analytics retrieved successfully',
+    data: report,
+  });
+});
+
 module.exports = {
   getDashboardSummary,
   getRiderDriverReport,
   getTripsOverTime,
+  getRevenueAnalytics,
 };

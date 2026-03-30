@@ -17,6 +17,13 @@ router.get(
 
 router.get('/trips-over-time', auth(), validate(dashboardValidation.getTripsOverTime), dashboardController.getTripsOverTime);
 
+router.get(
+  '/revenue-analytics',
+  auth(),
+  validate(dashboardValidation.getRevenueAnalytics),
+  dashboardController.getRevenueAnalytics
+);
+
 module.exports = router;
 
 /**
