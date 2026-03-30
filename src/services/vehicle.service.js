@@ -16,6 +16,7 @@ const queryVehicles = async (filter, options) => {
     vehicle: { $exists: true, $ne: null },
     'vehicle.make': { $exists: true },
     'vehicle.registrationNumber': { $exists: true },
+    status: { $in: ['approved', 'suspended'] },
   };
 
   // Handle general search term across vehicle fields
