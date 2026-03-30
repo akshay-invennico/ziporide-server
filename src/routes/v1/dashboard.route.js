@@ -8,6 +8,15 @@ const router = express.Router();
 
 router.get('/summary', auth(), validate(dashboardValidation.getDashboardSummary), dashboardController.getDashboardSummary);
 
+router.get(
+  '/rider-driver-report',
+  auth(),
+  validate(dashboardValidation.getRiderDriverReport),
+  dashboardController.getRiderDriverReport
+);
+
+router.get('/trips-over-time', auth(), validate(dashboardValidation.getTripsOverTime), dashboardController.getTripsOverTime);
+
 module.exports = router;
 
 /**
@@ -29,12 +38,12 @@ module.exports = router;
  *        - bearerAuth: []
  *      parameters:
  *        - in: query
- *          name: period
+ *          name: type
  *          schema:
  *            type: string
  *            enum: [today, week, month, year]
  *            default: month
- *          description: Time period for metrics
+ *          description: Time type for metrics
  *        - in: query
  *          name: startDate
  *          schema:
@@ -62,7 +71,7 @@ module.exports = router;
  *                  data:
  *                    type: object
  *                    properties:
- *                      period:
+ *                      type:
  *                        type: object
  *                        properties:
  *                          type:
@@ -89,9 +98,9 @@ module.exports = router;
  *                      growth:
  *                        type: object
  *                        properties:
- *                          newRidersThisPeriod:
+ *                          newRidersThistype:
  *                            type: integer
- *                          newDriversThisPeriod:
+ *                          newDriversThistype:
  *                            type: integer
  *                          averageTripFare:
  *                            type: number
