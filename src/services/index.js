@@ -24,3 +24,4 @@ module.exports.driverAdminService = require('./driverAdmin.service');
 module.exports.operatorService = require('./operator.service');
 module.exports.driverEarningsService = require('./driverEarnings.service');
 module.exports.driverDashboardService = require('./driverDashboard.service');
+module.exports.savedAddressService = require('./address.service');

@@ -55,7 +55,7 @@ const getCurrentRide = catchAsync(async (req, res) => {
   res.status(httpStatus.OK).send({
     success: true,
     message: result ? 'Active ride found' : 'No active ride',
-    data: result || { ride: null, eta: null },
+    data: result || { ride: null, eta: null, driverTotalTrips: null },
   });
 });
 

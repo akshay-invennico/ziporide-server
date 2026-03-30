@@ -590,18 +590,23 @@ const getCurrentRideForRider = async (riderId) => {
 
   // If a driver is assigned, calculate ETA from driver's location to pickup
   let eta = null;
-  if (
-    ride.driver?.currentLocation?.coordinates?.length === 2 &&
-    ['driver_allocated', 'driver_arrived'].includes(ride.status)
-  ) {
-    try {
-      eta = await mapboxService.getETA(ride.driver.currentLocation.coordinates, ride.pickup.coordinates);
-    } catch (err) {
-      logger.error(`Failed to get ETA for ride ${ride._id}: ${err.message}`);
+  let driverTotalTrips = null;
+  if (ride.driver) {
+    if (
+      ride.driver.currentLocation?.coordinates?.length === 2 &&
+      ['driver_allocated', 'driver_arrived'].includes(ride.status)
+    ) {
+      try {
+        eta = await mapboxService.getETA(ride.driver.currentLocation.coordinates, ride.pickup.coordinates);
+      } catch (err) {
+        logger.error(`Failed to get ETA for ride ${ride._id}: ${err.message}`);
+      }
     }
+
+    driverTotalTrips = await Ride.countDocuments({ driver: ride.driver._id, status: 'completed' });
   }
 
-  return { ride, eta };
+  return { ride, eta, driverTotalTrips };
 };
 
 /**
