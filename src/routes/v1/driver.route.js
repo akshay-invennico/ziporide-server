@@ -38,6 +38,7 @@ router.patch(
   driverController.verifyDocument
 );
 router.patch('/:id/status', auth(), validate(driverValidation.updateDriverStatus), driverController.updateDriverStatus);
+router.patch('/status', auth(), validate(driverValidation.updateDriversStatus), driverController.updateDriversStatus);
 
 module.exports = router;
 

@@ -17,7 +17,7 @@ router
 
 router
   .route('/')
-  .get(auth('getUsers'), validate(userValidation.getUser), userController.getUser)
+  .get(auth(), validate(userValidation.getUser), userController.getUser)
   .patch(auth(), validate(userValidation.updateUser), userController.updateUser);
 module.exports = router;
 
