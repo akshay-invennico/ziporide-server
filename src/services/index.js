@@ -19,6 +19,7 @@ module.exports.supportTicketService = require('./supportTicket.service');
 module.exports.dashboardService = require('./dashboard.service');
 module.exports.tripService = require('./trip.service');
 module.exports.driverTripService = require('./driverTrip.service');
+module.exports.driverAdminService = require('./driverAdmin.service');
 module.exports.operatorService = require('./operator.service');
 module.exports.driverEarningsService = require('./driverEarnings.service');
 module.exports.driverDashboardService = require('./driverDashboard.service');
