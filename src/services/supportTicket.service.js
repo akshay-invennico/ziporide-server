@@ -3,6 +3,17 @@ const httpStatus = require('http-status');
 const { SupportTicket, Driver, Ride } = require('../models');
 const ApiError = require('../utils/ApiError');
 
+const isOperatorUser = (requestUser) =>
+  !!(requestUser && typeof requestUser.isOperator === 'function' && requestUser.isOperator());
+
+const getDocumentId = (doc) => (doc ? (doc._id || doc.id || doc).toString() : null);
+
+const ensureOperatorPermission = (requestUser, permission) => {
+  if (isOperatorUser(requestUser) && !requestUser.permissions.includes(permission)) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'You do not have permission to perform this action.');
+  }
+};
+
 const createSupportTicketRecord = async (payload, retries = 3) => {
   try {
     return await SupportTicket.create(payload);
@@ -38,7 +49,10 @@ const createSupportTicket = async (driverId, rideId, ticketBody) => {
 };
 
 const getSupportTickets = async (requestUser, filter = {}, options = {}) => {
+  ensureOperatorPermission(requestUser, 'support.view');
+
   const isAdmin =
+    isOperatorUser(requestUser) ||
     (requestUser && requestUser.isAdmin === true) ||
     (requestUser && typeof requestUser.isAdminUser === 'function' && requestUser.isAdminUser());
 
@@ -85,35 +99,39 @@ const getSupportTickets = async (requestUser, filter = {}, options = {}) => {
   return result;
 };
 
-const getSupportTicketById = async (ticketId, driverId) => {
-  const ticketQuery = mongoose.Types.ObjectId.isValid(ticketId) ? { _id: ticketId } : { ticketId };
+const getSupportTicketById = async (ticketId, requestUser) => {
+  ensureOperatorPermission(requestUser, 'support.view');
 
-  const ticket = await SupportTicket.findOne(ticketQuery)
+  const ticketQuery = mongoose.Types.ObjectId.isValid(ticketId) ? { _id: ticketId } : { ticketId };
+  const query = isOperatorUser(requestUser) ? ticketQuery : { ...ticketQuery, driver: getDocumentId(requestUser) };
+
+  const ticket = await SupportTicket.findOne(query)
     .populate('ride', 'rideNumber status paymentStatus')
     .populate('driver', 'name phone');
 
   if (!ticket) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Support ticket not found');
-  }
-
-  if (ticket.driver._id.toString() !== driverId.toString()) {
-    throw new ApiError(httpStatus.FORBIDDEN, 'You are not authorised to view this support ticket');
+    throw new ApiError(
+      httpStatus.NOT_FOUND,
+      isOperatorUser(requestUser) ? 'Support ticket not found' : 'Support ticket not found for this driver'
+    );
   }
 
   return ticket;
 };
 
-const updateSupportTicket = async (ticketId, driverId, updateBody) => {
+const updateSupportTicket = async (ticketId, requestUser, updateBody) => {
+  ensureOperatorPermission(requestUser, 'support.respond');
+
+  if (!isOperatorUser(requestUser)) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'Only operators can update support tickets.');
+  }
+
   const ticketQuery = mongoose.Types.ObjectId.isValid(ticketId) ? { _id: ticketId } : { ticketId };
 
   const ticket = await SupportTicket.findOne(ticketQuery);
 
   if (!ticket) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Support ticket not found');
-  }
-
-  if (ticket.driver.toString() !== driverId.toString()) {
-    throw new ApiError(httpStatus.FORBIDDEN, 'You are not authorised to update this support ticket');
   }
 
   ticket.status = updateBody.status;
