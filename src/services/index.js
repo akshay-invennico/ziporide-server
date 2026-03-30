@@ -17,3 +17,4 @@ module.exports.paymentService = require('./payment.service');
 module.exports.supportTicketService = require('./supportTicket.service');
 module.exports.tripService = require('./trip.service');
 module.exports.driverTripService = require('./driverTrip.service');
+module.exports.vehicleService = require('./vehicle.service');

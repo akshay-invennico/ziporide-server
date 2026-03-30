@@ -9,3 +9,4 @@ module.exports.paymentController = require('./payment.controller');
 module.exports.supportTicketController = require('./supportTicket.controller');
 module.exports.tripController = require('./trip.controller');
 module.exports.driverTripController = require('./driverTrip.controller');
+module.exports.vehicleController = require('./vehicle.controller');

@@ -9,3 +9,4 @@ module.exports.paymentValidation = require('./payment.validation');
 module.exports.supportTicketValidation = require('./supportTicket.validation');
 module.exports.tripValidation = require('./trip.validation');
 module.exports.driverTripValidation = require('./driverTrip.validation');
+module.exports.vehicleValidation = require('./vehicle.validation');
