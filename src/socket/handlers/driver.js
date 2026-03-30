@@ -135,6 +135,9 @@ const setupDriverHandlers = (io, socket) => {
     try {
       const { latitude, longitude } = data || {};
 
+      console.log(latitude, "latitude");
+      console.log(longitude, "longitude")
+
       if (typeof latitude !== 'number' || typeof longitude !== 'number') {
         return callback?.({ success: false, message: 'latitude and longitude (numbers) are required' });
       }
@@ -152,12 +155,16 @@ const setupDriverHandlers = (io, socket) => {
         status: { $in: ['driver_allocated', 'driver_arrived', 'in_progress'] },
       }).lean();
 
+      console.log(activeRide, "active ride")
+
       if (activeRide) {
         // Calculate ETA from driver's current location to pickup (if driver hasn't arrived yet)
         let eta = null;
         if (['driver_allocated'].includes(activeRide.status)) {
           try {
+            console.log(eta, "eta");
             eta = await mapboxService.getETA([longitude, latitude], activeRide.pickup.coordinates);
+            console.log(eta, "eta after mapbox")
           } catch (err) {
             logger.error(`ETA calculation failed for ride ${activeRide._id}: ${err.message}`);
           }
