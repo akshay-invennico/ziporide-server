@@ -55,7 +55,6 @@ const setupDriverHandlers = (io, socket) => {
 
       await Driver.findByIdAndUpdate(driverId, {
         isOnline: true,
-        socketId: socket.id,
         currentLocation: {
           type: 'Point',
           coordinates: [longitude, latitude], // GeoJSON order: [lng, lat]
