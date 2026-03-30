@@ -9,3 +9,4 @@ module.exports.Pricing = require('./pricing.model');
 module.exports.Payment = require('./payment.model');
 module.exports.PaymentMethod = require('./paymentMethod.model');
 module.exports.SupportTicket = require('./supportTicket.model');
+module.exports.Operator = require('./operator.model');

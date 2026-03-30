@@ -176,8 +176,44 @@ ZipoRide Team
   return sendEmail(driver.email, subject, text, html);
 };
 
+/**
+ * Send operator welcome email with login credentials
+ * @param {Object} operator - Operator object
+ * @param {string} plainPassword - The auto-generated password (plain text)
+ * @returns {Promise}
+ */
+const sendOperatorWelcomeEmail = async (operator, plainPassword) => {
+  const subject = 'ZipoRide - Your Operator Account Has Been Created';
+
+  const html = await getEmailTemplate('operator-welcome', {
+    operatorName: escapeHTML(operator.name || 'Operator'),
+    operatorEmail: escapeHTML(operator.email),
+    operatorPassword: escapeHTML(plainPassword),
+    operatorRole: escapeHTML(operator.role),
+  });
+
+  const text = `
+Dear ${operator.name || 'Operator'},
+
+An operator account has been created for you on the ZipoRide admin panel.
+
+Your login credentials:
+  Email:    ${operator.email}
+  Password: ${plainPassword}
+  Role:     ${operator.role}
+
+Please change your password after your first login.
+
+Regards,
+ZipoRide Team
+  `.trim();
+
+  return sendEmail(operator.email, subject, text, html);
+};
+
 module.exports = {
   sendEmail,
   sendDriverApprovalEmail,
   sendDriverRejectionEmail,
+  sendOperatorWelcomeEmail,
 };

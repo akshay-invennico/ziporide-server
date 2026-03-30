@@ -158,10 +158,7 @@ const setupDriverHandlers = (io, socket) => {
         let eta = null;
         if (['driver_allocated'].includes(activeRide.status)) {
           try {
-            eta = await mapboxService.getETA(
-              [longitude, latitude],
-              activeRide.pickup.coordinates
-            );
+            eta = await mapboxService.getETA([longitude, latitude], activeRide.pickup.coordinates);
           } catch (err) {
             logger.error(`ETA calculation failed for ride ${activeRide._id}: ${err.message}`);
           }

@@ -85,7 +85,12 @@ const getAllDrivers = {
     limit: Joi.number().integer().min(1).max(100).default(10),
     sortBy: Joi.string().valid('createdAt', 'name', 'status', 'lastLoginAt', 'avgRating').default('createdAt'),
     sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
-    status: Joi.string().valid('pending', 'approved', 'rejected', 'suspended', 'active'),
+    status: Joi.alternatives().try(
+      Joi.string().valid('pending', 'approved', 'rejected', 'suspended', 'active', 'approvedDrivers'),
+      Joi.string().pattern(
+        /^(pending|approved|rejected|suspended|active|approvedDrivers)(,(pending|approved|rejected|suspended|active|approvedDrivers))*$/
+      )
+    ),
     isOnline: Joi.string().valid('true', 'false'),
     isSubscribed: Joi.string().valid('true', 'false'),
     minEarnings: Joi.number().min(0).optional(),
@@ -122,6 +127,26 @@ const updateDriverStatus = {
   }),
 };
 
+const updateDriversStatus = {
+  body: Joi.object().keys({
+    driverIds: Joi.array().items(Joi.string().custom(objectId)).min(1).required().messages({
+      'array.min': 'At least one driver ID is required',
+      'any.required': 'Driver IDs are required',
+    }),
+    status: Joi.string().valid('approved', 'suspended').required().messages({
+      'any.only': 'Status must be either approved or suspended',
+      'any.required': 'Status is required',
+    }),
+    suspendReason: Joi.when('status', {
+      is: 'suspended',
+      then: Joi.string().required().messages({
+        'any.required': 'Suspend reason is required when status is suspended',
+      }),
+      otherwise: Joi.string().optional(),
+    }),
+  }),
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -135,4 +160,5 @@ module.exports = {
   getDriverById,
   verifyDocument,
   updateDriverStatus,
+  updateDriversStatus,
 };

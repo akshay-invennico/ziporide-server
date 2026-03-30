@@ -56,14 +56,14 @@ const logout = catchAsync(async (req, res) => {
 
 const adminLogin = catchAsync(async (req, res) => {
   const { email, password } = req.body;
-  const user = await authService.adminLogin(email, password);
-  const tokens = await tokenService.generateAuthTokens(user);
+  const operator = await authService.adminLogin(email, password);
+  const tokens = await tokenService.generateAuthTokens(operator);
   res.status(httpStatus.OK).send({
     success: true,
     statusCode: httpStatus.OK,
     message: 'Admin login successful',
     data: {
-      user,
+      operator,
       tokens,
     },
   });
