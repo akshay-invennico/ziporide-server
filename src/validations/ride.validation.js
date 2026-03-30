@@ -148,21 +148,7 @@ const driverCancelRide = {
     rideId: Joi.string().required(),
   }),
   body: Joi.object().keys({
-    reason: Joi.string()
-      .valid(
-        'taking_too_long',
-        'driver_taking_too_long',
-        'wrong_location',
-        'incorrect_pickup_location',
-        'changed_mind',
-        'found_another_ride',
-        'ordered_by_mistake',
-        'driver_not_moving',
-        'driver_asked_to_cancel',
-        'safety_concerns',
-        'other'
-      )
-      .required(),
+    reason: Joi.string().required(),
     customReason: Joi.string()
       .trim()
       .max(300)
@@ -188,6 +174,36 @@ const getNearbyDrivers = {
   }),
 };
 
+const getAdminRides = {
+  query: Joi.object().keys({
+    driverId: Joi.string().custom(objectId).optional(),
+    riderId: Joi.string().custom(objectId).optional(),
+    status: Joi.string()
+      .valid('searching', 'driver_allocated', 'driver_arrived', 'in_progress', 'completed', 'cancelled', 'no_drivers')
+      .optional(),
+    search: Joi.string().optional(),
+    dateFilter: Joi.string().valid('currentYear', 'currentMonth', 'currentWeek').optional(),
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(50).default(10),
+    sortBy: Joi.string().optional(),
+  }),
+};
+
+const getAdminRide = {
+  params: Joi.object().keys({
+    rideId: Joi.string().required(),
+  }),
+};
+
+const adminCancelRide = {
+  params: Joi.object().keys({
+    rideId: Joi.string().required(),
+  }),
+  body: Joi.object().keys({
+    cancelReason: Joi.string().required(),
+  }),
+};
+
 module.exports = {
   createRide,
   getRideOptions,
@@ -205,4 +221,7 @@ module.exports = {
   arrivedAtDestination,
   completeRide,
   driverCancelRide,
+  getAdminRides,
+  getAdminRide,
+  adminCancelRide,
 };

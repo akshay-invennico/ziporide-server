@@ -133,10 +133,7 @@ const updateLocation = async (driverId, latitude, longitude) => {
  * @returns {Promise<object>}
  */
 const getStatus = async (driverId) => {
-  const driver = await Driver.findById(
-    driverId,
-    'isOnline currentLocation isSubscribed isBankLinked status'
-  );
+  const driver = await Driver.findById(driverId, 'isOnline currentLocation isSubscribed isBankLinked status');
 
   if (!driver) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
@@ -149,9 +146,7 @@ const getStatus = async (driverId) => {
     isSubscribed: driver.isSubscribed,
     isBankLinked: driver.isBankLinked,
     accountStatus: driver.status,
-    location: driver.currentLocation?.coordinates?.length
-      ? { latitude, longitude }
-      : null,
+    location: driver.currentLocation?.coordinates?.length ? { latitude, longitude } : null,
   };
 };
 

@@ -63,9 +63,9 @@ const findNearbyDrivers = async (pickup, vehicleType) => {
   });
 
   // Debug: log all online drivers and why they might be excluded
-  const allOnlineDrivers = await Driver.find({ isOnline: true }).select(
-    'name isOnline status isSubscribed isBankLinked vehicle.type currentLocation'
-  ).lean();
+  const allOnlineDrivers = await Driver.find({ isOnline: true })
+    .select('name isOnline status isSubscribed isBankLinked vehicle.type currentLocation')
+    .lean();
 
   if (allOnlineDrivers.length === 0) {
     logger.info('Dispatch debug: No online drivers found at all');
@@ -112,9 +112,7 @@ const findNearbyDrivers = async (pickup, vehicleType) => {
  * including the rider's rating and total trips.
  */
 const buildRidePayload = async (rideId) => {
-  return Ride.findById(rideId)
-    .populate('rider', 'name phone profile avgRating totalRatings')
-    .lean();
+  return Ride.findById(rideId).populate('rider', 'name phone profile avgRating totalRatings').lean();
 };
 
 /**
@@ -276,10 +274,7 @@ const handleDriverAccept = async (io, rideId, driverId) => {
   let eta = null;
   if (updatedRide.driver?.currentLocation?.coordinates?.length === 2) {
     try {
-      eta = await mapboxService.getETA(
-        updatedRide.driver.currentLocation.coordinates,
-        updatedRide.pickup.coordinates
-      );
+      eta = await mapboxService.getETA(updatedRide.driver.currentLocation.coordinates, updatedRide.pickup.coordinates);
     } catch (err) {
       logger.error(`Failed to get ETA for ride ${rideId}: ${err.message}`);
     }

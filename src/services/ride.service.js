@@ -56,8 +56,12 @@ const createRide = async (riderId, rideData) => {
     timeFare,
     surgeMultiplier,
     cancellationFee: pricing?.cancellationFee || 0,
-    totalFare: estimatedFare || _round(Math.max((category.baseFare + distanceFare + timeFare) * surgeMultiplier, pricing?.minimumFare || 0)),
-    estimatedFare: estimatedFare || _round(Math.max((category.baseFare + distanceFare + timeFare) * surgeMultiplier, pricing?.minimumFare || 0)),
+    totalFare:
+      estimatedFare ||
+      _round(Math.max((category.baseFare + distanceFare + timeFare) * surgeMultiplier, pricing?.minimumFare || 0)),
+    estimatedFare:
+      estimatedFare ||
+      _round(Math.max((category.baseFare + distanceFare + timeFare) * surgeMultiplier, pricing?.minimumFare || 0)),
     currency: 'GBP',
   };
 
@@ -179,10 +183,7 @@ const cancelRide = async (rideId, riderId, cancellationData) => {
 
   const cancellableStatuses = ['searching', 'driver_allocated'];
   if (!cancellableStatuses.includes(ride.status)) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      `Ride cannot be cancelled at this stage (current status: '${ride.status}')`
-    );
+    throw new ApiError(httpStatus.BAD_REQUEST, `Ride cannot be cancelled at this stage (current status: '${ride.status}')`);
   }
 
   ride.status = 'cancelled';
@@ -392,11 +393,13 @@ const arrivedAtStop = async (rideId, driverId, stopIndex) => {
   setImmediate(() => {
     try {
       const { getIO } = require('../socket');
-      getIO().to(`user:${ride.rider.toString()}`).emit('ride:arrived_at_stop', {
-        rideId: ride._id,
-        stopIndex,
-        message: `Driver has arrived at stop ${stopIndex + 1}.`,
-      });
+      getIO()
+        .to(`user:${ride.rider.toString()}`)
+        .emit('ride:arrived_at_stop', {
+          rideId: ride._id,
+          stopIndex,
+          message: `Driver has arrived at stop ${stopIndex + 1}.`,
+        });
     } catch {
       // socket may not be available in tests
     }
@@ -530,10 +533,7 @@ const cancelRideByDriver = async (rideId, driverId, cancellationData) => {
 
   const cancellableStatuses = ['driver_allocated', 'driver_arrived'];
   if (!cancellableStatuses.includes(ride.status)) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      `Ride cannot be cancelled at this stage (current status: '${ride.status}')`
-    );
+    throw new ApiError(httpStatus.BAD_REQUEST, `Ride cannot be cancelled at this stage (current status: '${ride.status}')`);
   }
 
   ride.status = 'cancelled';
@@ -680,6 +680,174 @@ const getNearbyDrivers = async (latitude, longitude, vehicleType) => {
   }));
 };
 
+/**
+ * Get all rides for admin with filtering capabilities.
+ * Admin can filter by driverId, riderId, or status.
+ */
+const getAllRidesForAdmin = async (filter = {}, options = {}) => {
+  const query = {};
+
+  // Apply filters if provided
+  if (filter.driverId) {
+    query.driver = filter.driverId;
+  }
+  if (filter.riderId) {
+    query.rider = filter.riderId;
+  }
+  if (filter.status) {
+    query.status = filter.status;
+  }
+
+  // Search functionality
+  if (filter.search) {
+    query.$or = [
+      { rideNumber: { $regex: filter.search, $options: 'i' } },
+      { 'driver.name': { $regex: filter.search, $options: 'i' } },
+      { 'rider.name': { $regex: filter.search, $options: 'i' } },
+    ];
+  }
+
+  // Date filtering
+  if (filter.dateFilter) {
+    const now = new Date();
+    let startOfWeek;
+    let endOfWeek;
+    let dayOfWeek;
+
+    switch (filter.dateFilter) {
+      case 'currentYear':
+        query.createdAt = {
+          $gte: new Date(now.getFullYear(), 0, 1), // Jan 1 of current year
+          $lt: new Date(now.getFullYear() + 1, 0, 1), // Jan 1 of next year
+        };
+        break;
+
+      case 'currentMonth':
+        query.createdAt = {
+          $gte: new Date(now.getFullYear(), now.getMonth(), 1), // 1st of current month
+          $lt: new Date(now.getFullYear(), now.getMonth() + 1, 1), // 1st of next month
+        };
+        break;
+
+      case 'currentWeek':
+        dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+        startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - dayOfWeek);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        query.createdAt = {
+          $gte: startOfWeek,
+          $lt: endOfWeek,
+        };
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  const result = await Ride.paginate(query, {
+    page: options.page || 1,
+    limit: options.limit || 10,
+    sortBy: options.sortBy || 'createdAt:desc',
+    populate: 'rider,driver',
+  });
+
+  if (result.results && result.results.length > 0) {
+    await Ride.populate(result.results, [
+      {
+        path: 'rider',
+        select: 'name phone email',
+      },
+      {
+        path: 'driver',
+        select: 'name phone email vehicle',
+        model: 'Driver',
+      },
+    ]);
+  }
+
+  return result;
+};
+
+/**
+ * Get a single ride by id for admin (no access restrictions).
+ */
+const getRideByIdForAdmin = async (rideId) => {
+  const ride = await Ride.findById(rideId)
+    .populate('rider', 'name phone email')
+    .populate('driver', 'name phone email vehicle profilePhotoUrl currentLocation avgRating totalRatings')
+    .populate('category', 'name vehicleType seatCapacity')
+    .populate('paymentMethod');
+
+  if (!ride) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
+  }
+
+  return ride;
+};
+
+const cancelRideByAdmin = async (rideId, cancelReason) => {
+  const ride = await Ride.findById(rideId);
+
+  if (!ride) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
+  }
+
+  if (ride.status === 'completed') {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Cannot cancel completed ride');
+  }
+
+  ride.status = 'cancelled';
+  ride.cancellation = {
+    cancelledBy: 'admin',
+    reason: cancelReason,
+    cancelledAt: new Date(),
+  };
+  ride.rideTimestamps.cancelledAt = new Date();
+  await ride.save();
+
+  // Release the payment hold (if any)
+  if (ride.stripePaymentIntentId) {
+    setImmediate(async () => {
+      try {
+        await paymentService.releaseRidePayment(rideId);
+      } catch (err) {
+        logger.error(`Failed to release payment hold for admin-cancelled ride ${rideId}: ${err.message}`);
+      }
+    });
+  }
+
+  // Notify both rider and driver
+  setImmediate(() => {
+    try {
+      const { getIO } = require('../socket');
+
+      // Notify rider
+      getIO().to(`user:${ride.rider.toString()}`).emit('ride:cancelled_by_admin', {
+        rideId: ride._id,
+        message: 'Your ride has been cancelled by admin.',
+      });
+
+      // Notify driver if assigned
+      if (ride.driver) {
+        getIO().to(`driver:${ride.driver.toString()}`).emit('ride:cancelled_by_admin', {
+          rideId: ride._id,
+          message: 'Ride has been cancelled by admin.',
+        });
+      }
+    } catch {
+      // socket may not be available in tests
+    }
+  });
+
+  return ride;
+};
+
 module.exports = {
   createRide,
   getRideById,
@@ -696,4 +864,7 @@ module.exports = {
   cancelRideByDriver,
   retryDispatch,
   getNearbyDrivers,
+  getAllRidesForAdmin,
+  getRideByIdForAdmin,
+  cancelRideByAdmin,
 };

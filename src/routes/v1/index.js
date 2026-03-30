@@ -13,11 +13,15 @@ const ratingRoute = require('./rating.route');
 const inventoryRoute = require('./inventory.route');
 const pricingRoute = require('./pricing.route');
 const paymentRoute = require('./payment.route');
+const transactionRoute = require('./transaction.route');
 const riderRoute = require('./rider.route');
 const supportTicketRoute = require('./supportTicket.route');
 const dashboardRoute = require('./dashboard.route');
 const tripRoute = require('./trip.route');
 const driverTripRoute = require('./driverTrip.route');
+const operatorRoute = require('./operator.route');
+const driverEarningsRoute = require('./driverEarnings.route');
+const driverDashboardRoute = require('./driverDashboard.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -30,6 +34,14 @@ const defaultRoutes = [
   {
     path: '/users',
     route: userRoute,
+  },
+  {
+    path: '/driver/dashboard',
+    route: driverDashboardRoute,
+  },
+  {
+    path: '/driver/earnings',
+    route: driverEarningsRoute,
   },
   {
     path: '/driver',
@@ -76,6 +88,10 @@ const defaultRoutes = [
     route: paymentRoute,
   },
   {
+    path: '/transactions',
+    route: transactionRoute,
+  },
+  {
     path: '/riders',
     route: riderRoute,
   },
@@ -94,6 +110,10 @@ const defaultRoutes = [
   {
     path: '/driver/trips',
     route: driverTripRoute,
+  },
+  {
+    path: '/operators',
+    route: operatorRoute,
   },
 ];
 

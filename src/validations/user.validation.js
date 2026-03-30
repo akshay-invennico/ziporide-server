@@ -66,7 +66,7 @@ const updateUser = (req, res, next) => {
   let schema;
   if (user.constructor.modelName === 'Driver') {
     schema = driverUpdateSchema;
-  } else if (user.isAdmin) {
+  } else if (typeof user.isOperator === 'function' && user.isOperator()) {
     schema = adminUpdateSchema;
   } else {
     schema = riderUpdateSchema;

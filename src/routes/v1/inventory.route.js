@@ -3,6 +3,8 @@ const { auth } = require('../../middlewares/auth');
 const validate = require('../../middlewares/validate');
 const inventoryValidation = require('../../validations/inventory.validation');
 const inventoryController = require('../../controllers/inventory.controller');
+const vehicleValidation = require('../../validations/vehicle.validation');
+const vehicleController = require('../../controllers/vehicle.controller');
 
 const router = express.Router();
 
@@ -57,5 +59,19 @@ router.delete(
   validate(inventoryValidation.deleteCategory),
   inventoryController.deleteCategory
 );
+
+/**
+ * @route   GET /v1/inventory/vehicles
+ * @desc    Get all driver vehicles with search and filters
+ * @access  Private (admin)
+ */
+router.get('/vehicles', auth(), validate(vehicleValidation.getVehicles), vehicleController.getVehicles);
+
+/**
+ * @route   GET /v1/inventory/vehicles/:vehicleId
+ * @desc    Get a driver vehicle by id
+ * @access  Private (admin)
+ */
+router.get('/vehicles/:vehicleId', auth(), vehicleController.getVehicle);
 
 module.exports = router;
