@@ -1,5 +1,6 @@
 const httpStatus = require('http-status');
 const mongoose = require('mongoose');
+const moment = require('moment');
 const { User, Ride } = require('../models');
 const ApiError = require('../utils/ApiError');
 const authService = require('./auth.service');
@@ -376,6 +377,103 @@ const getRiderSummary = async (riderId) => {
   };
 };
 
+/**
+ * Get rider spending trend over time
+ * @param {Object} query - Query parameters
+ * @returns {Promise<Array>} - Rider spending trend data
+ */
+const getRiderSpendingTrend = async (query) => {
+  const { riderId, year = moment().year(), month = moment().month() + 1, type = 'month' } = query;
+
+  let groupBy;
+  let dateRange;
+  let labels;
+
+  if (type === 'daily') {
+    groupBy = { $dayOfMonth: '$createdAt' };
+    const startDate = moment()
+      .year(year)
+      .month(month - 1)
+      .startOf('month')
+      .toDate();
+    const endDate = moment()
+      .year(year)
+      .month(month - 1)
+      .endOf('month')
+      .toDate();
+    dateRange = { startDate, endDate };
+
+    // Create day labels for the month
+    const daysInMonth = moment()
+      .year(year)
+      .month(month - 1)
+      .daysInMonth();
+    labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  } else {
+    groupBy = type === 'month' ? { $month: '$createdAt' } : { $year: '$createdAt' };
+    const startDate = moment().year(year).startOf('year').toDate();
+    const endDate = moment().year(year).endOf('year').toDate();
+    dateRange = { startDate, endDate };
+
+    labels =
+      type === 'month'
+        ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        : [year.toString()];
+  }
+
+  const { startDate, endDate } = dateRange;
+
+  const spendingData = await Ride.aggregate([
+    {
+      $match: {
+        rider: mongoose.Types.ObjectId(riderId),
+        status: 'completed',
+        createdAt: { $gte: startDate, $lte: endDate },
+      },
+    },
+    {
+      $group: {
+        _id: groupBy,
+        totalSpent: { $sum: '$fare.totalFare' },
+        totalRides: { $sum: 1 },
+      },
+    },
+    {
+      $sort: { _id: 1 },
+    },
+  ]);
+
+  // Initialize result array
+  let result;
+  if (type === 'daily') {
+    result = labels.map((day) => ({ day, spent: 0, rides: 0 }));
+  } else {
+    const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    result =
+      type === 'month'
+        ? monthLabels.map((monthLabel) => ({ month: monthLabel, spent: 0, rides: 0 }))
+        : [{ month: year.toString(), spent: 0, rides: 0 }];
+  }
+
+  // Populate spending and rides data
+  spendingData.forEach((item) => {
+    let index;
+    if (type === 'daily') {
+      index = item._id - 1;
+    } else if (type === 'month') {
+      index = item._id - 1;
+    } else {
+      index = 0;
+    }
+    if (index >= 0 && index < result.length) {
+      result[index].spent = item.totalSpent;
+      result[index].rides = item.totalRides;
+    }
+  });
+
+  return result;
+};
+
 module.exports = {
   getUserById,
   getUserByPhone,
@@ -386,4 +484,5 @@ module.exports = {
   initiateAccountDeletion,
   bulkUpdateRiderStatus,
   getRiderSummary,
+  getRiderSpendingTrend,
 };

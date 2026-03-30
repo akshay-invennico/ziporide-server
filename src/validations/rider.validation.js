@@ -1,4 +1,5 @@
 const Joi = require('joi');
+const moment = require('moment');
 const { objectId } = require('./custom.validation');
 
 const getRiders = {
@@ -47,9 +48,23 @@ const getRiderSummary = {
   }),
 };
 
+const getRiderSpendingTrend = {
+  query: Joi.object().keys({
+    riderId: Joi.string().custom(objectId).required(),
+    year: Joi.number().integer().min(2020).max(2030).default(moment().year()),
+    month: Joi.number()
+      .integer()
+      .min(1)
+      .max(12)
+      .default(moment().month() + 1),
+    type: Joi.string().valid('month', 'year', 'daily').default('month'),
+  }),
+};
+
 module.exports = {
   getRiders,
   getRider,
   updateRidersStatus,
   getRiderSummary,
+  getRiderSpendingTrend,
 };

@@ -114,6 +114,16 @@ const getRiderSummary = catchAsync(async (req, res) => {
   });
 });
 
+const getRiderSpendingTrend = catchAsync(async (req, res) => {
+  const spendingTrend = await userService.getRiderSpendingTrend(req.query);
+  res.status(httpStatus.OK).send({
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Rider spending trend retrieved successfully',
+    data: spendingTrend,
+  });
+});
+
 module.exports = {
   getMe,
   getUser,
@@ -124,4 +134,5 @@ module.exports = {
   verifyDeleteAccount,
   updateRidersStatus,
   getRiderSummary,
+  getRiderSpendingTrend,
 };
