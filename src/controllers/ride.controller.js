@@ -78,6 +78,35 @@ const getNearbyDrivers = catchAsync(async (req, res) => {
   });
 });
 
+const getAllRidesForAdmin = catchAsync(async (req, res) => {
+  const filter = pick(req.query, ['driverId', 'riderId', 'status']);
+  const options = pick(req.query, ['page', 'limit', 'sortBy']);
+  const result = await rideService.getAllRidesForAdmin(filter, options);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Rides retrieved successfully',
+    data: result,
+  });
+});
+
+const getRideForAdmin = catchAsync(async (req, res) => {
+  const ride = await rideService.getRideByIdForAdmin(req.params.rideId);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Ride retrieved successfully',
+    data: { ride },
+  });
+});
+
+const cancelRideForAdmin = catchAsync(async (req, res) => {
+  const ride = await rideService.cancelRideByAdmin(req.params.rideId, req.body.cancelReason);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Ride cancelled successfully by admin',
+    data: { ride },
+  });
+});
+
 module.exports = {
   getRideOptions,
   createRide,
@@ -87,4 +116,7 @@ module.exports = {
   getCurrentRide,
   retryDispatch,
   getNearbyDrivers,
+  getAllRidesForAdmin,
+  getRideForAdmin,
+  cancelRideForAdmin,
 };

@@ -11,13 +11,13 @@ const config = require('../config/config');
  * @returns {Promise<object>} Plan details formatted for the UI
  */
 const getSubscriptionPlan = async () => {
-  const priceId = config.stripe.priceId;
+  const { priceId } = config.stripe;
   if (!priceId) {
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Subscription plan is not configured');
   }
 
   const price = await stripeService.retrievePrice(priceId);
-  const product = price.product;
+  const { product } = price;
 
   return {
     plan: {
@@ -144,7 +144,7 @@ const _handleCheckoutSessionCompleted = async (session) => {
   if (session.mode !== 'subscription') return;
 
   const stripeSubscription = await stripeService.retrieveSubscription(session.subscription);
-  const driverId = session.metadata.driverId;
+  const { driverId } = session.metadata;
 
   const firstItem = stripeSubscription.items?.data?.[0];
   const periodStart = stripeSubscription.current_period_start ?? firstItem?.current_period_start;
@@ -161,11 +161,9 @@ const _handleCheckoutSessionCompleted = async (session) => {
   if (periodEnd) update.currentPeriodEnd = new Date(periodEnd * 1000);
 
   // Update the pending subscription document we created earlier
-  const subscriptionDoc = await Subscription.findOneAndUpdate(
-    { stripeCheckoutSessionId: session.id },
-    update,
-    { new: true }
-  );
+  const subscriptionDoc = await Subscription.findOneAndUpdate({ stripeCheckoutSessionId: session.id }, update, {
+    new: true,
+  });
 
   if (!subscriptionDoc) return;
 
@@ -192,11 +190,9 @@ const _handleSubscriptionUpdated = async (stripeSubscription) => {
   if (periodStart) update.currentPeriodStart = new Date(periodStart * 1000);
   if (periodEnd) update.currentPeriodEnd = new Date(periodEnd * 1000);
 
-  const subscriptionDoc = await Subscription.findOneAndUpdate(
-    { stripeSubscriptionId: stripeSubscription.id },
-    update,
-    { new: true }
-  );
+  const subscriptionDoc = await Subscription.findOneAndUpdate({ stripeSubscriptionId: stripeSubscription.id }, update, {
+    new: true,
+  });
 
   if (!subscriptionDoc) return;
 
@@ -255,9 +251,7 @@ const getSubscriptionStatus = async (driverId) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
   }
 
-  const subscription = await Subscription.findOne({ driver: driverId })
-    .sort({ createdAt: -1 })
-    .lean();
+  const subscription = await Subscription.findOne({ driver: driverId }).sort({ createdAt: -1 }).lean();
 
   return {
     isSubscribed: driver.isSubscribed || false,
@@ -341,10 +335,10 @@ const getTransactionHistory = async (driverId, limit = 20) => {
     createdAt: new Date(invoice.created * 1000),
     paymentIntent: invoice.payment_intent
       ? {
-        id: invoice.payment_intent.id,
-        status: invoice.payment_intent.status,
-        paymentMethod: invoice.payment_intent.payment_method,
-      }
+          id: invoice.payment_intent.id,
+          status: invoice.payment_intent.status,
+          paymentMethod: invoice.payment_intent.payment_method,
+        }
       : null,
   }));
 
@@ -404,11 +398,11 @@ const _formatPaymentMethod = (pm) => {
     return {
       id: pm.id,
       type: 'card',
-      brand: pm.card.brand,           // 'visa' | 'mastercard' | 'amex' etc.
+      brand: pm.card.brand, // 'visa' | 'mastercard' | 'amex' etc.
       last4: pm.card.last4,
       expMonth: pm.card.exp_month,
       expYear: pm.card.exp_year,
-      funding: pm.card.funding,       // 'credit' | 'debit' | 'prepaid'
+      funding: pm.card.funding, // 'credit' | 'debit' | 'prepaid'
       country: pm.card.country,
       holderName: pm.billing_details?.name || null,
     };
