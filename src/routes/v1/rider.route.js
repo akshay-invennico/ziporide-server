@@ -6,6 +6,10 @@ const userController = require('../../controllers/user.controller');
 
 const router = express.Router();
 
+router.get('/summary', auth(), validate(riderValidation.getRiderSummary), userController.getRiderSummary);
+
+router.get('/spending-trend', auth(), validate(riderValidation.getRiderSpendingTrend), userController.getRiderSpendingTrend);
+
 router
   .get('/', auth(), validate(riderValidation.getRiders), userController.getUsers)
   .get('/:userId', auth(), validate(riderValidation.getRider), userController.getUser)
@@ -183,6 +187,83 @@ module.exports = router;
  *                        type: integer
  *                      status:
  *                        type: string
+ *        "400":
+ *          $ref: '#/components/responses/BadRequest'
+ *        "401":
+ *          $ref: '#/components/responses/Unauthorized'
+ *        "403":
+ *          $ref: '#/components/responses/Forbidden'
+ */
+
+/**
+ * @swagger
+ * path:
+ *  /riders/spending-trend:
+ *    get:
+ *      summary: Get rider spending trend
+ *      description: Get spending trend data for a specific rider with daily, monthly, or yearly views.
+ *      tags: [Riders]
+ *      security:
+ *        - bearerAuth: []
+ *      parameters:
+ *        - in: query
+ *          name: riderId
+ *          required: true
+ *          schema:
+ *            type: string
+ *          description: Rider ID
+ *        - in: query
+ *          name: year
+ *          schema:
+ *            type: integer
+ *            minimum: 2020
+ *            maximum: 2030
+ *            default: current year
+ *          description: Year for the report
+ *        - in: query
+ *          name: month
+ *          schema:
+ *            type: integer
+ *            minimum: 1
+ *            maximum: 12
+ *            default: current month
+ *          description: Month for the report (required when type is daily)
+ *        - in: query
+ *          name: type
+ *          schema:
+ *            type: string
+ *            enum: [month, year, daily]
+ *            default: month
+ *          description: Type of trend analysis
+ *      responses:
+ *        "200":
+ *          description: OK
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: object
+ *                properties:
+ *                  success:
+ *                    type: boolean
+ *                  message:
+ *                    type: string
+ *                  data:
+ *                    type: array
+ *                    items:
+ *                      type: object
+ *                      properties:
+ *                        day:
+ *                          type: integer
+ *                          description: Day of month (for daily type)
+ *                        month:
+ *                          type: string
+ *                          description: Month name (for monthly type)
+ *                        spent:
+ *                          type: number
+ *                          description: Total amount spent
+ *                        rides:
+ *                          type: integer
+ *                          description: Number of rides
  *        "400":
  *          $ref: '#/components/responses/BadRequest'
  *        "401":

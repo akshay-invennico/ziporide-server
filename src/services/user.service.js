@@ -1,6 +1,7 @@
 const httpStatus = require('http-status');
 const mongoose = require('mongoose');
-const { User } = require('../models');
+const moment = require('moment');
+const { User, Ride } = require('../models');
 const ApiError = require('../utils/ApiError');
 const authService = require('./auth.service');
 
@@ -328,6 +329,151 @@ const bulkUpdateRiderStatus = async (riderIds, status, suspendReason) => {
   };
 };
 
+/**
+ * Get rider dashboard summary cards
+ * Returns total trips, total spent, average trip value, and cancellation rate
+ */
+const getRiderSummary = async (riderId) => {
+  const aggregationPipeline = [
+    { $match: { rider: mongoose.Types.ObjectId(riderId) } },
+    {
+      $group: {
+        _id: null,
+        totalRides: { $sum: 1 },
+        completedRides: {
+          $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] },
+        },
+        cancelledRides: {
+          $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] },
+        },
+        totalSpent: {
+          $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$fare.totalFare', 0] },
+        },
+        totalFareSum: {
+          $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$fare.totalFare', 0] },
+        },
+      },
+    },
+  ];
+
+  const result = await Ride.aggregate(aggregationPipeline);
+  const summary = result[0] || {
+    totalRides: 0,
+    completedRides: 0,
+    cancelledRides: 0,
+    totalSpent: 0,
+    totalFareSum: 0,
+  };
+
+  const cancellationRate = summary.totalRides > 0 ? ((summary.cancelledRides / summary.totalRides) * 100).toFixed(1) : '0.0';
+
+  const averageTripValue = summary.completedRides > 0 ? (summary.totalFareSum / summary.completedRides).toFixed(2) : '0.00';
+
+  return {
+    totalTrips: summary.completedRides,
+    totalSpent: summary.totalSpent,
+    averageTripValue: parseFloat(averageTripValue),
+    cancellationRate: parseFloat(cancellationRate),
+  };
+};
+
+/**
+ * Get rider spending trend over time
+ * @param {Object} query - Query parameters
+ * @returns {Promise<Array>} - Rider spending trend data
+ */
+const getRiderSpendingTrend = async (query) => {
+  const { riderId, year = moment().year(), month = moment().month() + 1, type = 'month' } = query;
+
+  let groupBy;
+  let dateRange;
+  let labels;
+
+  if (type === 'daily') {
+    groupBy = { $dayOfMonth: '$createdAt' };
+    const startDate = moment()
+      .year(year)
+      .month(month - 1)
+      .startOf('month')
+      .toDate();
+    const endDate = moment()
+      .year(year)
+      .month(month - 1)
+      .endOf('month')
+      .toDate();
+    dateRange = { startDate, endDate };
+
+    // Create day labels for the month
+    const daysInMonth = moment()
+      .year(year)
+      .month(month - 1)
+      .daysInMonth();
+    labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  } else {
+    groupBy = type === 'month' ? { $month: '$createdAt' } : { $year: '$createdAt' };
+    const startDate = moment().year(year).startOf('year').toDate();
+    const endDate = moment().year(year).endOf('year').toDate();
+    dateRange = { startDate, endDate };
+
+    labels =
+      type === 'month'
+        ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        : [year.toString()];
+  }
+
+  const { startDate, endDate } = dateRange;
+
+  const spendingData = await Ride.aggregate([
+    {
+      $match: {
+        rider: mongoose.Types.ObjectId(riderId),
+        status: 'completed',
+        createdAt: { $gte: startDate, $lte: endDate },
+      },
+    },
+    {
+      $group: {
+        _id: groupBy,
+        totalSpent: { $sum: '$fare.totalFare' },
+        totalRides: { $sum: 1 },
+      },
+    },
+    {
+      $sort: { _id: 1 },
+    },
+  ]);
+
+  // Initialize result array
+  let result;
+  if (type === 'daily') {
+    result = labels.map((day) => ({ day, spent: 0, rides: 0 }));
+  } else {
+    const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    result =
+      type === 'month'
+        ? monthLabels.map((monthLabel) => ({ month: monthLabel, spent: 0, rides: 0 }))
+        : [{ month: year.toString(), spent: 0, rides: 0 }];
+  }
+
+  // Populate spending and rides data
+  spendingData.forEach((item) => {
+    let index;
+    if (type === 'daily') {
+      index = item._id - 1;
+    } else if (type === 'month') {
+      index = item._id - 1;
+    } else {
+      index = 0;
+    }
+    if (index >= 0 && index < result.length) {
+      result[index].spent = item.totalSpent;
+      result[index].rides = item.totalRides;
+    }
+  });
+
+  return result;
+};
+
 module.exports = {
   getUserById,
   getUserByPhone,
@@ -337,4 +483,6 @@ module.exports = {
   queryUsers,
   initiateAccountDeletion,
   bulkUpdateRiderStatus,
+  getRiderSummary,
+  getRiderSpendingTrend,
 };
