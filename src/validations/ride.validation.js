@@ -209,6 +209,15 @@ const getAdminRide = {
   }),
 };
 
+const adminCancelRide = {
+  params: Joi.object().keys({
+    rideId: Joi.string().required(),
+  }),
+  body: Joi.object().keys({
+    cancelReason: Joi.string().required(),
+  }),
+};
+
 module.exports = {
   createRide,
   getRideOptions,
@@ -228,4 +237,5 @@ module.exports = {
   driverCancelRide,
   getAdminRides,
   getAdminRide,
+  adminCancelRide,
 };

@@ -791,6 +791,63 @@ const getRideByIdForAdmin = async (rideId) => {
   return ride;
 };
 
+const cancelRideByAdmin = async (rideId, cancelReason) => {
+  const ride = await Ride.findById(rideId);
+
+  if (!ride) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
+  }
+
+  if (ride.status === 'completed') {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Cannot cancel completed ride');
+  }
+
+  ride.status = 'cancelled';
+  ride.cancellation = {
+    cancelledBy: 'admin',
+    reason: cancelReason,
+    cancelledAt: new Date(),
+  };
+  ride.rideTimestamps.cancelledAt = new Date();
+  await ride.save();
+
+  // Release the payment hold (if any)
+  if (ride.stripePaymentIntentId) {
+    setImmediate(async () => {
+      try {
+        await paymentService.releaseRidePayment(rideId);
+      } catch (err) {
+        logger.error(`Failed to release payment hold for admin-cancelled ride ${rideId}: ${err.message}`);
+      }
+    });
+  }
+
+  // Notify both rider and driver
+  setImmediate(() => {
+    try {
+      const { getIO } = require('../socket');
+
+      // Notify rider
+      getIO().to(`user:${ride.rider.toString()}`).emit('ride:cancelled_by_admin', {
+        rideId: ride._id,
+        message: 'Your ride has been cancelled by admin.',
+      });
+
+      // Notify driver if assigned
+      if (ride.driver) {
+        getIO().to(`driver:${ride.driver.toString()}`).emit('ride:cancelled_by_admin', {
+          rideId: ride._id,
+          message: 'Ride has been cancelled by admin.',
+        });
+      }
+    } catch {
+      // socket may not be available in tests
+    }
+  });
+
+  return ride;
+};
+
 module.exports = {
   createRide,
   getRideById,
@@ -809,4 +866,5 @@ module.exports = {
   getNearbyDrivers,
   getAllRidesForAdmin,
   getRideByIdForAdmin,
+  cancelRideByAdmin,
 };

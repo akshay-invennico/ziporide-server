@@ -78,4 +78,6 @@ router.get('/admin/all', admin(), validate(rideValidation.getAdminRides), rideCo
  */
 router.get('/admin/:rideId', admin(), validate(rideValidation.getAdminRide), rideController.getRideForAdmin);
 
+router.post('/admin/:rideId/cancel', admin(), validate(rideValidation.adminCancelRide), rideController.cancelRideForAdmin);
+
 module.exports = router;
