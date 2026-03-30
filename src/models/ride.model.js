@@ -38,7 +38,7 @@ const cancellationSchema = new mongoose.Schema(
   {
     cancelledBy: {
       type: String,
-      enum: ['rider', 'driver'],
+      enum: ['rider', 'driver', 'admin'],
     },
     reason: {
       type: String,
