@@ -1,8 +1,10 @@
 const express = require('express');
 const validate = require('../../middlewares/validate');
-const { auth } = require('../../middlewares/auth');
+const { auth, admin } = require('../../middlewares/auth');
 const driverValidation = require('../../validations/driver.validation');
+const driverAdminValidation = require('../../validations/driverAdmin.validation');
 const driverController = require('../../controllers/driver.controller');
+const driverAdminController = require('../../controllers/driverAdmin.controller');
 
 const router = express.Router();
 router.post('/send/otp', validate(driverValidation.sendOtp), driverController.sendOtp);
@@ -14,6 +16,20 @@ router.post('/refresh/tokens', validate(driverValidation.refreshTokens), driverC
 router.post('/logout', validate(driverValidation.logout), driverController.logout);
 router.get('/', auth(), validate(driverValidation.getAllDrivers), driverController.getAllDrivers);
 router.get('/vehicle/types', auth(), driverController.getVehicleTypes);
+router.get(
+  '/:id/subscriptions',
+  auth(),
+  admin(),
+  validate(driverAdminValidation.getDriverSubscriptions),
+  driverAdminController.getDriverSubscriptions
+);
+router.get(
+  '/:id/earnings',
+  auth(),
+  admin(),
+  validate(driverAdminValidation.getDriverEarningStats),
+  driverAdminController.getDriverEarningStats
+);
 router.get('/:id', auth(), validate(driverValidation.getDriverById), driverController.getDriverById);
 router.patch(
   '/:id/verify/:documentType',

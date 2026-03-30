@@ -37,8 +37,16 @@ const createSupportTicket = async (driverId, rideId, ticketBody) => {
     .populate('driver', 'name phone');
 };
 
-const getSupportTickets = async (driverId, filter = {}, options = {}) => {
-  const query = { driver: driverId };
+const getSupportTickets = async (requestUser, filter = {}, options = {}) => {
+  const isAdmin =
+    (requestUser && requestUser.isAdmin === true) ||
+    (requestUser && typeof requestUser.isAdminUser === 'function' && requestUser.isAdminUser());
+
+  const query = {};
+
+  if (!isAdmin) {
+    query.driver = requestUser.id;
+  }
 
   if (filter.status) {
     query.status = filter.status;

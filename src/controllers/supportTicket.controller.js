@@ -16,7 +16,7 @@ const createSupportTicket = catchAsync(async (req, res) => {
 const getSupportTickets = catchAsync(async (req, res) => {
   const filter = pick(req.query, ['status']);
   const options = pick(req.query, ['page', 'limit', 'sortBy']);
-  const result = await supportTicketService.getSupportTickets(req.user.id, filter, options);
+  const result = await supportTicketService.getSupportTickets(req.user, filter, options);
 
   res.status(httpStatus.OK).send({
     status: true,
