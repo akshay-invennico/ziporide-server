@@ -1,6 +1,6 @@
 const httpStatus = require('http-status');
 const mongoose = require('mongoose');
-const { User } = require('../models');
+const { User, Ride } = require('../models');
 const ApiError = require('../utils/ApiError');
 const authService = require('./auth.service');
 
@@ -328,6 +328,54 @@ const bulkUpdateRiderStatus = async (riderIds, status, suspendReason) => {
   };
 };
 
+/**
+ * Get rider dashboard summary cards
+ * Returns total trips, total spent, average trip value, and cancellation rate
+ */
+const getRiderSummary = async (riderId) => {
+  const aggregationPipeline = [
+    { $match: { rider: mongoose.Types.ObjectId(riderId) } },
+    {
+      $group: {
+        _id: null,
+        totalRides: { $sum: 1 },
+        completedRides: {
+          $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] },
+        },
+        cancelledRides: {
+          $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] },
+        },
+        totalSpent: {
+          $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$fare.totalFare', 0] },
+        },
+        totalFareSum: {
+          $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$fare.totalFare', 0] },
+        },
+      },
+    },
+  ];
+
+  const result = await Ride.aggregate(aggregationPipeline);
+  const summary = result[0] || {
+    totalRides: 0,
+    completedRides: 0,
+    cancelledRides: 0,
+    totalSpent: 0,
+    totalFareSum: 0,
+  };
+
+  const cancellationRate = summary.totalRides > 0 ? ((summary.cancelledRides / summary.totalRides) * 100).toFixed(1) : '0.0';
+
+  const averageTripValue = summary.completedRides > 0 ? (summary.totalFareSum / summary.completedRides).toFixed(2) : '0.00';
+
+  return {
+    totalTrips: summary.completedRides,
+    totalSpent: summary.totalSpent,
+    averageTripValue: parseFloat(averageTripValue),
+    cancellationRate: parseFloat(cancellationRate),
+  };
+};
+
 module.exports = {
   getUserById,
   getUserByPhone,
@@ -337,4 +385,5 @@ module.exports = {
   queryUsers,
   initiateAccountDeletion,
   bulkUpdateRiderStatus,
+  getRiderSummary,
 };

@@ -103,6 +103,17 @@ const updateRidersStatus = catchAsync(async (req, res) => {
   });
 });
 
+const getRiderSummary = catchAsync(async (req, res) => {
+  const { riderId } = req.query;
+  const summary = await userService.getRiderSummary(riderId);
+  res.status(httpStatus.OK).send({
+    success: true,
+    statusCode: httpStatus.OK,
+    message: 'Rider summary retrieved successfully',
+    data: summary,
+  });
+});
+
 module.exports = {
   getMe,
   getUser,
@@ -112,4 +123,5 @@ module.exports = {
   initiateDeleteAccount,
   verifyDeleteAccount,
   updateRidersStatus,
+  getRiderSummary,
 };

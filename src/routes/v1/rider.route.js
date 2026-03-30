@@ -6,6 +6,8 @@ const userController = require('../../controllers/user.controller');
 
 const router = express.Router();
 
+router.get('/summary', auth(), validate(riderValidation.getRiderSummary), userController.getRiderSummary);
+
 router
   .get('/', auth(), validate(riderValidation.getRiders), userController.getUsers)
   .get('/:userId', auth(), validate(riderValidation.getRider), userController.getUser)

@@ -41,8 +41,15 @@ const updateRidersStatus = {
   }),
 };
 
+const getRiderSummary = {
+  query: Joi.object().keys({
+    riderId: Joi.string().custom(objectId).required(),
+  }),
+};
+
 module.exports = {
   getRiders,
   getRider,
   updateRidersStatus,
+  getRiderSummary,
 };
