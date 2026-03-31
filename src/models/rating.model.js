@@ -1,8 +1,6 @@
 const mongoose = require('mongoose');
 const { toJSON, paginate } = require('./plugins');
 
-const BEHAVIOUR_TAGS = ['professional', 'friendly', 'decent', 'not_good'];
-
 const ratingSchema = new mongoose.Schema(
   {
     ride: {
@@ -35,7 +33,7 @@ const ratingSchema = new mongoose.Schema(
       max: 5,
     },
     behaviourTags: {
-      type: [{ type: String, enum: BEHAVIOUR_TAGS }],
+      type: [{ type: String }],
       default: [],
     },
     feedback: {

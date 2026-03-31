@@ -8,7 +8,7 @@ const submitRating = {
   body: Joi.object().keys({
     stars: Joi.number().integer().min(1).max(5).required(),
     behaviourTags: Joi.array()
-      .items(Joi.string().valid('professional', 'friendly', 'decent', 'not_good'))
+      .items(Joi.string())
       .max(4)
       .default([])
       .optional(),
@@ -37,7 +37,7 @@ const submitRiderRating = {
   body: Joi.object().keys({
     stars: Joi.number().integer().min(1).max(5).required(),
     behaviourTags: Joi.array()
-      .items(Joi.string().valid('professional', 'friendly', 'decent', 'not_good'))
+      .items(Joi.string())
       .max(4)
       .default([])
       .optional(),
