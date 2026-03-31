@@ -11,7 +11,15 @@ const authService = require('./auth.service');
  * @returns {Promise<User>}
  */
 const getUserById = async (id) => {
-  return User.findById(id);
+  const user = await User.findById(id);
+  if (user) {
+    const userObject = user.toJSON();
+    // Add createdAt and updatedAt back since toJSON plugin removes them
+    userObject.createdAt = user.createdAt;
+    userObject.updatedAt = user.updatedAt;
+    return userObject;
+  }
+  return user;
 };
 
 /**
