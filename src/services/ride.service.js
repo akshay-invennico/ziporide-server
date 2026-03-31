@@ -242,10 +242,19 @@ const getCurrentRideForDriver = async (driverId) => {
     driver: driverId,
     status: { $in: ['driver_allocated', 'driver_arrived', 'in_progress'] },
   })
-    .populate('rider', 'name phone profile')
+    .populate('rider', 'name phone profile avgRating totalRatings')
     .sort({ createdAt: -1 });
 
-  return ride || null;
+  if (!ride) return null;
+
+  const riderTotalTrips = await Ride.countDocuments({ rider: ride.rider._id, status: 'completed' });
+
+  const pricing = await Pricing.findOne();
+  const waitingChargePerMinute = pricing?.waitingCharge || 0;
+  const freeWaitingTime = pricing?.freeWaitingTime || 0;
+  const maxPaidWaitingTime = pricing?.maxPaidWaitingTime || 0;
+
+  return { ride, riderTotalTrips, waitingChargePerMinute, freeWaitingTime, maxPaidWaitingTime };
 };
 
 /**

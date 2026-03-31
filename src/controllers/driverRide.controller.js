@@ -78,12 +78,20 @@ const getDriverRides = catchAsync(async (req, res) => {
  * Use this when the driver app restarts to resume the current trip state.
  */
 const getCurrentRide = catchAsync(async (req, res) => {
-  const ride = await rideService.getCurrentRideForDriver(req.user.id);
+  const result = await rideService.getCurrentRideForDriver(req.user.id);
 
   res.status(httpStatus.OK).send({
     success: true,
-    message: ride ? 'Active ride found' : 'No active ride',
-    data: { ride },
+    message: result ? 'Active ride found' : 'No active ride',
+    data: result
+      ? {
+          ride: result.ride,
+          riderTotalTrips: result.riderTotalTrips,
+          waitingChargePerMinute: result.waitingChargePerMinute,
+          freeWaitingTime: result.freeWaitingTime,
+          maxPaidWaitingTime: result.maxPaidWaitingTime,
+        }
+      : { ride: null },
   });
 });
 

@@ -135,9 +135,6 @@ const setupDriverHandlers = (io, socket) => {
     try {
       const { latitude, longitude } = data || {};
 
-      console.log(latitude, "latitude");
-      console.log(longitude, "longitude")
-
       if (typeof latitude !== 'number' || typeof longitude !== 'number') {
         return callback?.({ success: false, message: 'latitude and longitude (numbers) are required' });
       }
@@ -153,28 +150,34 @@ const setupDriverHandlers = (io, socket) => {
       const activeRide = await Ride.findOne({
         driver: driverId,
         status: { $in: ['driver_allocated', 'driver_arrived', 'in_progress'] },
-      }).lean();
-
-      console.log(activeRide, "active ride")
+      }).select('rider pickup status');
 
       if (activeRide) {
-        // Calculate ETA from driver's current location to pickup (if driver hasn't arrived yet)
-        let eta = null;
-        if (['driver_allocated'].includes(activeRide.status)) {
-          try {
-            console.log(eta, "eta");
-            eta = await mapboxService.getETA([longitude, latitude], activeRide.pickup.coordinates);
-            console.log(eta, "eta after mapbox")
-          } catch (err) {
-            logger.error(`ETA calculation failed for ride ${activeRide._id}: ${err.message}`);
-          }
-        }
+        const riderId = activeRide.rider.toString();
 
-        io.to(`user:${activeRide.rider.toString()}`).emit('ride:driver_location', {
+        // Emit location immediately so the rider sees real-time movement
+        io.to(`user:${riderId}`).emit('ride:driver_location', {
           rideId: activeRide._id,
           location: { latitude, longitude },
-          eta,
+          eta: null,
         });
+
+        logger.info(`ride:driver_location emitted to rider ${riderId} for ride ${activeRide._id} | lat=${latitude} lng=${longitude}`);
+
+        // Calculate ETA asynchronously (don't block location broadcasts)
+        if (activeRide.status === 'driver_allocated' && activeRide.pickup?.coordinates) {
+          mapboxService
+            .getETA([longitude, latitude], activeRide.pickup.coordinates)
+            .then((eta) => {
+              io.to(`user:${riderId}`).emit('ride:driver_eta', {
+                rideId: activeRide._id,
+                eta,
+              });
+            })
+            .catch((err) => {
+              logger.error(`ETA calculation failed for ride ${activeRide._id}: ${err.message}`);
+            });
+        }
       }
 
       callback?.({ success: true });

@@ -25,4 +25,11 @@ router.get('/', auth(), accountController.getBankAccount);
  */
 router.delete('/:bankAccountId', auth(), accountController.deleteBankAccount);
 
+/**
+ * POST /v1/driver/account/webhook
+ * Stripe Connect webhook — called automatically by Stripe on account.updated events.
+ * No JWT auth — secured via Stripe signature verification.
+ */
+router.post('/webhook', accountController.handleConnectWebhook);
+
 module.exports = router;

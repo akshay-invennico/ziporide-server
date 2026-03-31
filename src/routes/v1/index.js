@@ -41,6 +41,10 @@ const defaultRoutes = [
     route: driverDashboardRoute,
   },
   {
+    path: '/driver/account',
+    route: accountRoute,
+  },
+  {
     path: '/driver/earnings',
     route: driverEarningsRoute,
   },
@@ -51,10 +55,6 @@ const defaultRoutes = [
   {
     path: '/driver/subscription',
     route: subscriptionRoute,
-  },
-  {
-    path: '/driver/account',
-    route: accountRoute,
   },
   {
     path: '/driver/status',
