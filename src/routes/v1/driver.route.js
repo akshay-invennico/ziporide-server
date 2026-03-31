@@ -3,8 +3,10 @@ const validate = require('../../middlewares/validate');
 const { auth, admin } = require('../../middlewares/auth');
 const driverValidation = require('../../validations/driver.validation');
 const driverAdminValidation = require('../../validations/driverAdmin.validation');
+const notificationValidation = require('../../validations/notification.validation');
 const driverController = require('../../controllers/driver.controller');
 const driverAdminController = require('../../controllers/driverAdmin.controller');
+const notificationController = require('../../controllers/notification.controller');
 
 const router = express.Router();
 router.post('/send/otp', validate(driverValidation.sendOtp), driverController.sendOtp);
@@ -39,6 +41,12 @@ router.patch(
 );
 router.patch('/:id/status', auth(), validate(driverValidation.updateDriverStatus), driverController.updateDriverStatus);
 router.patch('/status', auth(), validate(driverValidation.updateDriversStatus), driverController.updateDriversStatus);
+router.post(
+  '/notifications/fcm/token',
+  auth(),
+  validate(notificationValidation.registerFcmToken),
+  notificationController.registerDriverFcmToken
+);
 
 module.exports = router;
 

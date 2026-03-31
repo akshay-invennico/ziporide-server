@@ -154,6 +154,10 @@ const driverSchema = new mongoose.Schema(
       type: Date,
     },
 
+    fcmToken: {
+      type: String,
+    },
+
     // ── Stripe / Subscription ─────────────────────────────────────────────
     /** Stripe Customer ID – created the first time the driver starts a subscription */
     stripeCustomerId: {

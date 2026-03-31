@@ -38,6 +38,9 @@ const envVarsSchema = Joi.object()
       'Stripe Connect webhook signing secret for account.updated events'
     ),
     MAPBOX_ACCESS_TOKEN: Joi.string().required().description('Mapbox access token for Directions API'),
+    FIREBASE_PROJECT_ID: Joi.string().description('Firebase project ID'),
+    FIREBASE_CLIENT_EMAIL: Joi.string().description('Firebase service account client email'),
+    FIREBASE_PRIVATE_KEY: Joi.string().description('Firebase service account private key'),
     AWS_ACCESS_KEY_ID: Joi.string().description('AWS access key ID'),
     AWS_SECRET_ACCESS_KEY: Joi.string().description('AWS secret access key'),
     AWS_BUCKET_REGION: Joi.string().description('AWS region'),
@@ -100,6 +103,11 @@ module.exports = {
   },
   mapbox: {
     accessToken: envVars.MAPBOX_ACCESS_TOKEN,
+  },
+  firebase: {
+    projectId: envVars.FIREBASE_PROJECT_ID,
+    clientEmail: envVars.FIREBASE_CLIENT_EMAIL,
+    privateKey: envVars.FIREBASE_PRIVATE_KEY ? envVars.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined,
   },
   aws: {
     s3: {

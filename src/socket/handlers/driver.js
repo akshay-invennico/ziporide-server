@@ -162,7 +162,9 @@ const setupDriverHandlers = (io, socket) => {
           eta: null,
         });
 
-        logger.info(`ride:driver_location emitted to rider ${riderId} for ride ${activeRide._id} | lat=${latitude} lng=${longitude}`);
+        logger.info(
+          `ride:driver_location emitted to rider ${riderId} for ride ${activeRide._id} | lat=${latitude} lng=${longitude}`
+        );
 
         // Calculate ETA asynchronously (don't block location broadcasts)
         if (activeRide.status === 'driver_allocated' && activeRide.pickup?.coordinates) {

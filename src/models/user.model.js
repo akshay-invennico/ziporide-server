@@ -98,6 +98,10 @@ const userSchema = mongoose.Schema(
       type: Date,
     },
 
+    fcmToken: {
+      type: String,
+    },
+
     avgRating: {
       type: Number,
       default: 0,

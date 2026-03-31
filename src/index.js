@@ -4,6 +4,7 @@ const app = require('./app');
 const config = require('./config/config');
 const logger = require('./config/logger');
 const { initSocket } = require('./socket');
+const { initFirebase } = require('./config/firebase');
 
 let server;
 
@@ -25,6 +26,8 @@ mongoose.connect(config.mongoose.url, config.mongoose.options).then(async () => 
   } catch (err) {
     logger.warn('Index migration check failed (non-fatal):', err.message);
   }
+
+  initFirebase();
 
   server = http.createServer(app);
   await initSocket(server);

@@ -7,11 +7,7 @@ const submitRating = {
   }),
   body: Joi.object().keys({
     stars: Joi.number().integer().min(1).max(5).required(),
-    behaviourTags: Joi.array()
-      .items(Joi.string())
-      .max(4)
-      .default([])
-      .optional(),
+    behaviourTags: Joi.array().items(Joi.string()).max(4).default([]).optional(),
     feedback: Joi.string().trim().max(500).optional().allow('', null),
     tipAmount: Joi.number().min(0).max(100).precision(2).optional(),
   }),
@@ -36,11 +32,7 @@ const submitRiderRating = {
   }),
   body: Joi.object().keys({
     stars: Joi.number().integer().min(1).max(5).required(),
-    behaviourTags: Joi.array()
-      .items(Joi.string())
-      .max(4)
-      .default([])
-      .optional(),
+    behaviourTags: Joi.array().items(Joi.string()).max(4).default([]).optional(),
     feedback: Joi.string().trim().max(500).optional().allow('', null),
   }),
 };
