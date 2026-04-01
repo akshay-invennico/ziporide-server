@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const moment = require('moment');
 const { User, Ride } = require('../models');
 const ApiError = require('../utils/ApiError');
-const authService = require('./auth.service');
+const driverService = require('./driver.service');
 
 /**
  * Get user by id
@@ -71,24 +71,24 @@ const updateUserById = async (user, updateBody) => {
 };
 
 /**
- * Initiate account deletion process
- * @param {Object} user - User document
+ * Initiate account deletion process for driver (with OTP verification)
+ * @param {Object} user - Driver document
  * @param {string} deleteReason - Reason for deletion
  * @returns {Promise<{message: string, maskedPhone: string}>}
  */
-const initiateAccountDeletion = async (user, deleteReason) => {
+const initiateDriverAccountDeletion = async (user, deleteReason) => {
   if (!user) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+    throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
   }
 
   if (user.isDeleted) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Account is already deleted');
   }
 
-  // Use existing sendOtp function from auth service
-  await authService.sendOtp(user.phone, user.countryCode);
+  // Use driverService.sendOtp for drivers
+  await driverService.sendOtp(user.phone, user.countryCode);
 
-  // Store deletion reason temporarily
+  // Store deletion reason temporarily by creating a new object with the updated fields
   const updatedUser = user;
   updatedUser.deleteReason = deleteReason;
   await updatedUser.save();
@@ -103,12 +103,12 @@ const initiateAccountDeletion = async (user, deleteReason) => {
 };
 
 /**
- * Delete user by id with OTP verification
- * @param {Object} user - User document
- * @param {string} otp - OTP code
+ * Delete rider account directly without OTP verification
+ * @param {Object} user - Rider document
+ * @param {string} deleteReason - Reason for deletion
  * @returns {Promise<User>}
  */
-const deleteUserById = async (user, otp) => {
+const deleteRiderAccount = async (user, deleteReason) => {
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
@@ -117,9 +117,57 @@ const deleteUserById = async (user, otp) => {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Account is already deleted');
   }
 
-  // Verify OTP using existing auth service function
-  const verifiedUser = await authService.verifyOtp(user.phone, user.countryCode, otp);
-  // Soft delete the user
+  // Soft delete the user by creating a new object with the updated fields
+  const updatedUser = user;
+  updatedUser.isDeleted = true;
+  updatedUser.deletedAt = new Date();
+  updatedUser.deleteReason = deleteReason;
+  await updatedUser.save();
+
+  return updatedUser;
+};
+
+/**
+ * Initiate account deletion process for rider (without OTP)
+ * @param {Object} user - Rider document
+ * @param {string} deleteReason - Reason for deletion
+ * @returns {Promise<{message: string}>}
+ */
+const initiateRiderAccountDeletion = async (user, deleteReason) => {
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  if (user.isDeleted) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Account is already deleted');
+  }
+
+  // Directly delete rider account without OTP
+  await deleteRiderAccount(user, deleteReason);
+
+  return {
+    message: 'Account deleted successfully',
+  };
+};
+
+/**
+ * Delete driver account by id with OTP verification
+ * @param {Object} user - Driver document
+ * @param {string} otp - OTP code
+ * @returns {Promise<User>}
+ */
+const deleteDriverById = async (user, otp) => {
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
+  }
+
+  if (user.isDeleted) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Account is already deleted');
+  }
+
+  // Verify OTP using driverService.verifyOtp for drivers
+  const verifiedUser = await driverService.verifyOtp(user.phone, user.countryCode, otp);
+  // Soft delete the user by creating a new object with the updated fields
   const deletedUser = verifiedUser;
   deletedUser.isDeleted = true;
   deletedUser.deletedAt = new Date();
@@ -135,16 +183,16 @@ const updatePassword = async (userId, currentPassword, newPassword) => {
   }
 
   if (!user.password) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'User does not have a password set');
+    throw new ApiError(httpStatus.OK, 'User does not have a password set');
   }
 
   const isCurrentPasswordValid = await user.isPasswordMatch(currentPassword);
   if (!isCurrentPasswordValid) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, 'Current password is incorrect');
+    throw new ApiError(httpStatus.OK, 'Current password is incorrect');
   }
 
   if (currentPassword === newPassword) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'New password must be different from current password');
+    throw new ApiError(httpStatus.OK, 'New password must be different from current password');
   }
 
   user.password = newPassword;
@@ -486,10 +534,12 @@ module.exports = {
   getUserById,
   getUserByPhone,
   updateUserById,
-  deleteUserById,
+  deleteDriverById,
   updatePassword,
   queryUsers,
-  initiateAccountDeletion,
+  initiateDriverAccountDeletion,
+  initiateRiderAccountDeletion,
+  deleteRiderAccount,
   bulkUpdateRiderStatus,
   getRiderSummary,
   getRiderSpendingTrend,

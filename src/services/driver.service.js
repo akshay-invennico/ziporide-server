@@ -23,6 +23,10 @@ const sendOtp = async (phone, countryCode) => {
   if (!driver) {
     driver = await Driver.create({ phone, countryCode, otp, otpExpiresAt });
   } else {
+    if (driver.isDeleted) {
+      throw new ApiError(httpStatus.FORBIDDEN, 'Your account has been deleted. Please contact support.');
+    }
+
     if (driver.status === 'suspended' || driver.status === 'rejected') {
       throw new ApiError(httpStatus.FORBIDDEN, `Your account has been ${driver.status}. Please contact support.`);
     }
