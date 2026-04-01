@@ -4,8 +4,12 @@ const ApiError = require('../utils/ApiError');
 const stripeService = require('./stripe.service');
 
 const normalizeFilterValue = (filter) => {
+  if (filter === 'payin') {
+    return 'payin';
+  }
+
   if (filter === 'payout') {
-    return 'pay-out';
+    return 'payout';
   }
 
   if (filter === 'refund') {
@@ -15,27 +19,36 @@ const normalizeFilterValue = (filter) => {
   return filter;
 };
 
-const buildFilter = (filter, driverId) => {
-  const normalizedFilter = normalizeFilterValue(filter);
+const buildBaseQuery = (driverId) => {
   const query = {};
 
   if (driverId) {
     query.driver = driverId;
   }
 
-  if (normalizedFilter === 'pay-in') {
-    query.type = { $in: ['charge', 'cancellation_fee'] };
-  }
-
-  if (normalizedFilter === 'pay-out') {
-    query.driverPayout = { $gt: 0 };
-  }
-
-  if (normalizedFilter === 'refunded') {
-    query.$or = [{ type: 'refund' }, { status: 'refunded' }];
-  }
-
   return query;
+};
+
+const matchesFilterType = (transaction, filter) => {
+  if (filter === 'all') {
+    return true;
+  }
+
+  return transaction.filterType === filter;
+};
+
+const buildSort = (sortBy = 'createdAt:desc') => {
+  if (!sortBy) {
+    return '-createdAt';
+  }
+
+  return sortBy
+    .split(',')
+    .map((sortOption) => {
+      const [key, order] = sortOption.split(':');
+      return `${order === 'desc' ? '-' : ''}${key}`;
+    })
+    .join(' ');
 };
 
 const toPlain = (value) => {
@@ -66,14 +79,14 @@ const getStripeSubscriptionStatus = (subscription) => {
 
 const getPaymentCategory = (payment) => {
   if (payment.type === 'refund' || payment.status === 'refunded') {
-    return 'refund';
+    return 'refunded';
   }
 
   if (payment.driverPayout > 0) {
     return 'payout';
   }
 
-  return 'pay-in';
+  return 'payin';
 };
 
 const normalizeStatus = (status) => {
@@ -117,7 +130,7 @@ const formatPaymentTransaction = (payment) => {
     amount = type === 'tip' ? payoutAmount : -payoutAmount;
   }
 
-  if (category === 'refund') {
+  if (category === 'refunded') {
     amount = -Math.abs(paymentAmount);
   }
 
@@ -126,7 +139,7 @@ const formatPaymentTransaction = (payment) => {
     transactionId: null,
     filterType: category,
     type,
-    status: category === 'refund' ? 'refunded' : normalizeStatus(status),
+    status: category === 'refunded' ? 'refunded' : normalizeStatus(status),
     amount,
     currency,
     source: 'payment',
@@ -179,7 +192,7 @@ const formatSubscriptionTransaction = (invoice, driver, customer, subscription) 
   return {
     id: invoice.id,
     transactionId: null,
-    filterType: 'pay-in',
+    filterType: 'payin',
     type: 'subscription_payment',
     status: normalizeStatus(invoice.status),
     amount: invoice.amount_paid / 100,
@@ -240,6 +253,12 @@ const getSubscriptionTransactions = async (driverId, limit) => {
   return results.flat();
 };
 
+const getPaymentTransactions = async ({ driverId, sortBy = 'createdAt:desc' } = {}) => {
+  return Payment.find(buildBaseQuery(driverId))
+    .sort(buildSort(sortBy))
+    .populate(['ride', 'rider', 'driver', 'paymentMethod']);
+};
+
 const sortTransactions = (results) => {
   return results.sort((a, b) => {
     const timeDiff = new Date(b.createdAt) - new Date(a.createdAt);
@@ -255,16 +274,10 @@ const addSequentialTransactionIds = (results) => {
   }));
 };
 
-const getMergedTransactions = async ({ driverId, limitMultiplier = 20 } = {}) => {
-  const paymentResult = await Payment.paginate(buildFilter('all', driverId), {
-    page: 1,
-    limit: limitMultiplier,
-    sortBy: 'createdAt:desc',
-    populate: 'ride,rider,driver,paymentMethod',
-  });
-
-  let results = paymentResult.results.map(formatPaymentTransaction);
-  const subscriptionTransactions = await getSubscriptionTransactions(driverId, limitMultiplier);
+const getMergedTransactions = async ({ driverId, sortBy = 'createdAt:desc' } = {}) => {
+  const payments = await getPaymentTransactions({ driverId, sortBy });
+  let results = payments.map(formatPaymentTransaction);
+  const subscriptionTransactions = await getSubscriptionTransactions(driverId);
   results = results.concat(subscriptionTransactions);
 
   return addSequentialTransactionIds(sortTransactions(results));
@@ -280,30 +293,11 @@ const getAllTransactions = async ({ filter = 'all', driverId, page = 1, limit = 
     }
   }
 
-  const paymentLimit = Math.max(Number(limit) * Number(page), 20);
   const safeLimit = Number(limit) || 10;
   const safePage = Number(page) || 1;
 
-  let results;
-  if (normalizedFilter === 'all') {
-    results = await getMergedTransactions({ driverId, limitMultiplier: paymentLimit });
-  } else {
-    const paymentResult = await Payment.paginate(buildFilter(normalizedFilter, driverId), {
-      page: 1,
-      limit: paymentLimit,
-      sortBy,
-      populate: 'ride,rider,driver,paymentMethod',
-    });
-
-    results = paymentResult.results.map(formatPaymentTransaction);
-
-    if (normalizedFilter === 'pay-in') {
-      const subscriptionTransactions = await getSubscriptionTransactions(driverId, paymentLimit);
-      results = results.concat(subscriptionTransactions);
-    }
-
-    results = addSequentialTransactionIds(sortTransactions(results));
-  }
+  const mergedTransactions = await getMergedTransactions({ driverId, sortBy });
+  const results = mergedTransactions.filter((transaction) => matchesFilterType(transaction, normalizedFilter));
   const start = (safePage - 1) * safeLimit;
   const paginatedResults = results.slice(start, start + safeLimit);
   const totalResults = results.length;
