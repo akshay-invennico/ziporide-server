@@ -38,23 +38,47 @@ const updateUser = catchAsync(async (req, res) => {
 
 const initiateDeleteAccount = catchAsync(async (req, res) => {
   const { deleteReason } = req.body;
-  const result = await userService.initiateAccountDeletion(req.user, deleteReason);
+  const { user } = req;
 
-  res.status(httpStatus.OK).send({
-    success: true,
-    message: result.message,
-    data: {
-      maskedPhone: result.maskedPhone,
-    },
-  });
+  // Check if user is driver or rider
+  const isDriver = user.constructor.modelName === 'Driver';
+
+  let result;
+  if (isDriver) {
+    // Driver: Initiate deletion with OTP verification
+    result = await userService.initiateDriverAccountDeletion(user, deleteReason);
+
+    res.status(httpStatus.OK).send({
+      success: true,
+      statusCode: httpStatus.OK,
+      message: `${result.message} ${result.maskedPhone}`,
+    });
+  } else {
+    // Rider: Direct deletion without OTP
+    result = await userService.initiateRiderAccountDeletion(user, deleteReason);
+
+    res.status(httpStatus.OK).send({
+      success: true,
+      statusCode: httpStatus.OK,
+      message: result.message,
+    });
+  }
 });
 
 /**
- * Verify OTP and delete account
+ * Verify OTP and delete driver account
  */
 const verifyDeleteAccount = catchAsync(async (req, res) => {
   const { otp } = req.body;
-  await userService.deleteUserById(req.user, otp);
+  const { user } = req;
+
+  // Only drivers should use this endpoint (riders don't need OTP verification)
+  const isDriver = user.constructor.modelName === 'Driver';
+  if (!isDriver) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'OTP verification is only required for driver accounts');
+  }
+
+  await userService.deleteDriverById(user, otp);
 
   res.status(httpStatus.OK).send({
     success: true,
