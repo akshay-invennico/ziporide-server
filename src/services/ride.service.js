@@ -775,7 +775,7 @@ const getAllRidesForAdmin = async (filter = {}, options = {}) => {
     await Ride.populate(result.results, [
       {
         path: 'rider',
-        select: 'name phone email',
+        select: 'name phone email countryCode',
       },
       {
         path: 'driver',
