@@ -14,6 +14,64 @@ const ensureOperatorPermission = (requestUser, permission) => {
   }
 };
 
+const formatSupportTicket = (ticket) => ({
+  id: ticket.id,
+  ticketId: ticket.ticketId,
+  cause: ticket.cause,
+  description: ticket.description,
+  status: ticket.status,
+  createdAt: ticket.createdAt,
+  ride: ticket.ride
+    ? {
+        id: ticket.ride.id,
+        rideNumber: ticket.ride.rideNumber,
+        status: ticket.ride.status,
+        paymentStatus: ticket.ride.paymentStatus,
+      }
+    : null,
+  rider: ticket.ride?.rider
+    ? {
+        id: ticket.ride.rider.id,
+        name: ticket.ride.rider.name || null,
+        email: ticket.ride.rider.email || null,
+        phone: ticket.ride.rider.phone || null,
+        profile: ticket.ride.rider.profile || null,
+      }
+    : null,
+  driver: ticket.driver
+    ? {
+        id: ticket.driver.id,
+        name: ticket.driver.name || null,
+        email: ticket.driver.email || null,
+        phone: ticket.driver.phone || null,
+        profile: ticket.driver.profilePhotoUrl || null,
+      }
+    : null,
+});
+
+const populateSupportTicketRelations = async (tickets) => {
+  if (!tickets || (Array.isArray(tickets) && tickets.length === 0)) {
+    return tickets;
+  }
+
+  await SupportTicket.populate(tickets, [
+    {
+      path: 'ride',
+      select: 'rideNumber status paymentStatus rider',
+      populate: {
+        path: 'rider',
+        select: 'name phone email profile',
+      },
+    },
+    {
+      path: 'driver',
+      select: 'name phone email profilePhotoUrl',
+    },
+  ]);
+
+  return tickets;
+};
+
 const createSupportTicketRecord = async (payload, retries = 3) => {
   try {
     return await SupportTicket.create(payload);
@@ -43,33 +101,10 @@ const createSupportTicket = async (driverId, rideId, ticketBody) => {
     description: ticketBody.description,
   });
 
-  const populatedTicket = await SupportTicket.findById(ticket._id)
-    .populate('ride', 'rideNumber status paymentStatus')
-    .populate('driver', 'name phone');
+  const populatedTicket = await SupportTicket.findById(ticket._id);
+  await populateSupportTicketRelations(populatedTicket);
 
-  return {
-    id: populatedTicket.id,
-    ticketId: populatedTicket.ticketId,
-    cause: populatedTicket.cause,
-    description: populatedTicket.description,
-    status: populatedTicket.status,
-    createdAt: populatedTicket.createdAt,
-    ride: populatedTicket.ride
-      ? {
-          id: populatedTicket.ride.id,
-          rideNumber: populatedTicket.ride.rideNumber,
-          status: populatedTicket.ride.status,
-          paymentStatus: populatedTicket.ride.paymentStatus,
-        }
-      : null,
-    driver: populatedTicket.driver
-      ? {
-          id: populatedTicket.driver.id,
-          name: populatedTicket.driver.name,
-          phone: populatedTicket.driver.phone,
-        }
-      : null,
-  };
+  return formatSupportTicket(populatedTicket);
 };
 
 const getSupportTickets = async (requestUser, filter = {}, options = {}) => {
@@ -97,29 +132,8 @@ const getSupportTickets = async (requestUser, filter = {}, options = {}) => {
     populate: 'ride,driver',
   });
 
-  result.results = result.results.map((ticket) => ({
-    id: ticket.id,
-    ticketId: ticket.ticketId,
-    cause: ticket.cause,
-    description: ticket.description,
-    status: ticket.status,
-    createdAt: ticket.createdAt,
-    ride: ticket.ride
-      ? {
-          id: ticket.ride.id,
-          rideNumber: ticket.ride.rideNumber,
-          status: ticket.ride.status,
-          paymentStatus: ticket.ride.paymentStatus,
-        }
-      : null,
-    driver: ticket.driver
-      ? {
-          id: ticket.driver.id,
-          name: ticket.driver.name,
-          phone: ticket.driver.phone,
-        }
-      : null,
-  }));
+  await populateSupportTicketRelations(result.results);
+  result.results = result.results.map(formatSupportTicket);
 
   return result;
 };
@@ -130,9 +144,8 @@ const getSupportTicketById = async (ticketId, requestUser) => {
   const ticketQuery = mongoose.Types.ObjectId.isValid(ticketId) ? { _id: ticketId } : { ticketId };
   const query = isOperatorUser(requestUser) ? ticketQuery : { ...ticketQuery, driver: getDocumentId(requestUser) };
 
-  const ticket = await SupportTicket.findOne(query)
-    .populate('ride', 'rideNumber status paymentStatus')
-    .populate('driver', 'name phone');
+  const ticket = await SupportTicket.findOne(query);
+  await populateSupportTicketRelations(ticket);
 
   if (!ticket) {
     throw new ApiError(
@@ -141,29 +154,7 @@ const getSupportTicketById = async (ticketId, requestUser) => {
     );
   }
 
-  return {
-    id: ticket.id,
-    ticketId: ticket.ticketId,
-    cause: ticket.cause,
-    description: ticket.description,
-    status: ticket.status,
-    createdAt: ticket.createdAt,
-    ride: ticket.ride
-      ? {
-          id: ticket.ride.id,
-          rideNumber: ticket.ride.rideNumber,
-          status: ticket.ride.status,
-          paymentStatus: ticket.ride.paymentStatus,
-        }
-      : null,
-    driver: ticket.driver
-      ? {
-          id: ticket.driver.id,
-          name: ticket.driver.name,
-          phone: ticket.driver.phone,
-        }
-      : null,
-  };
+  return formatSupportTicket(ticket);
 };
 
 const updateSupportTicket = async (ticketId, requestUser, updateBody) => {
@@ -184,33 +175,10 @@ const updateSupportTicket = async (ticketId, requestUser, updateBody) => {
   ticket.status = updateBody.status;
 
   await ticket.save();
-  const populatedTicket = await SupportTicket.findById(ticket._id)
-    .populate('ride', 'rideNumber status paymentStatus')
-    .populate('driver', 'name phone');
+  const populatedTicket = await SupportTicket.findById(ticket._id);
+  await populateSupportTicketRelations(populatedTicket);
 
-  return {
-    id: populatedTicket.id,
-    ticketId: populatedTicket.ticketId,
-    cause: populatedTicket.cause,
-    description: populatedTicket.description,
-    status: populatedTicket.status,
-    createdAt: populatedTicket.createdAt,
-    ride: populatedTicket.ride
-      ? {
-          id: populatedTicket.ride.id,
-          rideNumber: populatedTicket.ride.rideNumber,
-          status: populatedTicket.ride.status,
-          paymentStatus: populatedTicket.ride.paymentStatus,
-        }
-      : null,
-    driver: populatedTicket.driver
-      ? {
-          id: populatedTicket.driver.id,
-          name: populatedTicket.driver.name,
-          phone: populatedTicket.driver.phone,
-        }
-      : null,
-  };
+  return formatSupportTicket(populatedTicket);
 };
 
 module.exports = {

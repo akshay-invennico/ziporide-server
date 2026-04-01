@@ -165,6 +165,7 @@ const formatPaymentTransaction = (payment) => {
           name: rider.name || null,
           email: rider.email || null,
           phone: rider.phone || null,
+          profile: rider.profile || null,
         }
       : null,
     driver: driver
@@ -173,6 +174,7 @@ const formatPaymentTransaction = (payment) => {
           name: driver.name || null,
           email: driver.email || null,
           phone: driver.phone || null,
+          profile: driver.profilePhotoUrl || null,
           subscriptionStatus: driver.subscriptionStatus || 'none',
           isSubscribed: driver.isSubscribed || false,
         }
@@ -214,6 +216,7 @@ const formatSubscriptionTransaction = (invoice, driver, customer, subscription) 
       name: (customer && customer.name) || driver.name || null,
       email: (customer && customer.email) || driver.email || null,
       phone: (customer && customer.phone) || driver.phone || null,
+      profile: driver.profilePhotoUrl || null,
       subscriptionStatus: getStripeSubscriptionStatus(subscription),
       isSubscribed: getStripeSubscriptionStatus(subscription) === 'active',
     },
@@ -232,7 +235,9 @@ const getSubscriptionTransactions = async (driverId, limit) => {
   const driverQuery = driverId
     ? { _id: driverId, stripeCustomerId: { $exists: true, $ne: null } }
     : { stripeCustomerId: { $exists: true, $ne: null } };
-  const drivers = await Driver.find(driverQuery).select('name email phone stripeCustomerId subscriptionStatus isSubscribed');
+  const drivers = await Driver.find(driverQuery).select(
+    'name email phone profilePhotoUrl stripeCustomerId subscriptionStatus isSubscribed'
+  );
 
   const results = await Promise.all(
     drivers.map(async (driver) => {
@@ -325,7 +330,7 @@ const getTransactionById = async (transactionId) => {
   }
 
   const drivers = await Driver.find({ stripeCustomerId: { $exists: true, $ne: null } }).select(
-    'name email phone stripeCustomerId subscriptionStatus isSubscribed'
+    'name email phone profilePhotoUrl stripeCustomerId subscriptionStatus isSubscribed'
   );
 
   const subscriptionMatches = await Promise.all(
