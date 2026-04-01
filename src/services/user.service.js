@@ -1,7 +1,7 @@
 const httpStatus = require('http-status');
 const mongoose = require('mongoose');
 const moment = require('moment');
-const { User, Ride } = require('../models');
+const { User, Ride, SavedAddress } = require('../models');
 const ApiError = require('../utils/ApiError');
 const driverService = require('./driver.service');
 
@@ -17,6 +17,11 @@ const getUserById = async (id) => {
     // Add createdAt and updatedAt back since toJSON plugin removes them
     userObject.createdAt = user.createdAt;
     userObject.updatedAt = user.updatedAt;
+
+    // Add user's saved addresses
+    const addresses = await SavedAddress.find({ user: user._id }).sort({ createdAt: -1 });
+    userObject.addresses = addresses;
+
     return userObject;
   }
   return user;
