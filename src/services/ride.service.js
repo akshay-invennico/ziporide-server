@@ -793,10 +793,12 @@ const getAllRidesForAdmin = async (filter = {}, options = {}) => {
  */
 const getRideByIdForAdmin = async (rideId) => {
   const ride = await Ride.findById(rideId)
-    .populate('rider', 'name phone email countryCode')
+    .populate('rider', 'name phone email countryCode avgRating totalRatings')
     .populate('driver', 'name phone email vehicle profilePhotoUrl currentLocation avgRating totalRatings countryCode')
     .populate('category', 'name vehicleType seatCapacity')
-    .populate('paymentMethod');
+    .populate('paymentMethod')
+    .populate('rating', 'stars behaviourTags feedback tipAmount createdAt ratedBy')
+    .populate('driverRating', 'stars behaviourTags feedback createdAt ratedBy');
 
   if (!ride) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Ride not found');
