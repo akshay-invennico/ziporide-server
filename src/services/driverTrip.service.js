@@ -131,11 +131,15 @@ const getDriverTrips = async (driverId, filter = {}, options = {}) => {
     page: options.page || 1,
     limit: options.limit || 10,
     sortBy: options.sortBy || 'createdAt:desc',
-    populate: [
+    populate: 'rider,rating',
+  });
+
+  if (result.results.length > 0) {
+    await Ride.populate(result.results, [
       { path: 'rider', select: 'name avgRating' },
       { path: 'rating', select: 'stars' },
-    ],
-  });
+    ]);
+  }
 
   const trips = result.results.map((ride) => ({
     id: ride._id,
@@ -150,6 +154,7 @@ const getDriverTrips = async (driverId, filter = {}, options = {}) => {
       ? {
           id: ride.rider._id,
           name: ride.rider.name,
+          profile: ride.rider.profile || null,
         }
       : null,
     ratingStars: ride.rating?.stars || null,

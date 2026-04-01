@@ -35,6 +35,7 @@ const formatSupportTicket = (ticket) => ({
         name: ticket.ride.rider.name || null,
         email: ticket.ride.rider.email || null,
         phone: ticket.ride.rider.phone || null,
+        countryCode: ticket.ride.rider.countryCode || null,
         profile: ticket.ride.rider.profile || null,
       }
     : null,
@@ -45,6 +46,7 @@ const formatSupportTicket = (ticket) => ({
         email: ticket.driver.email || null,
         phone: ticket.driver.phone || null,
         profile: ticket.driver.profilePhotoUrl || null,
+        countryCode: ticket.driver.countryCode || null,
       }
     : null,
 });
@@ -60,12 +62,12 @@ const populateSupportTicketRelations = async (tickets) => {
       select: 'rideNumber status paymentStatus rider',
       populate: {
         path: 'rider',
-        select: 'name phone email profile',
+        select: 'name phone email countryCode profile',
       },
     },
     {
       path: 'driver',
-      select: 'name phone email profilePhotoUrl',
+      select: 'name phone email countryCode profilePhotoUrl',
     },
   ]);
 

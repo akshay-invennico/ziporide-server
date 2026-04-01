@@ -166,6 +166,7 @@ const formatPaymentTransaction = (payment) => {
           email: rider.email || null,
           phone: rider.phone || null,
           profile: rider.profile || null,
+          countryCode: rider.countryCode || null,
         }
       : null,
     driver: driver
@@ -175,6 +176,7 @@ const formatPaymentTransaction = (payment) => {
           email: driver.email || null,
           phone: driver.phone || null,
           profile: driver.profilePhotoUrl || null,
+          countryCode: driver.countryCode || null,
           subscriptionStatus: driver.subscriptionStatus || 'none',
           isSubscribed: driver.isSubscribed || false,
         }
