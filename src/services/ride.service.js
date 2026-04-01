@@ -793,8 +793,8 @@ const getAllRidesForAdmin = async (filter = {}, options = {}) => {
  */
 const getRideByIdForAdmin = async (rideId) => {
   const ride = await Ride.findById(rideId)
-    .populate('rider', 'name phone email')
-    .populate('driver', 'name phone email vehicle profilePhotoUrl currentLocation avgRating totalRatings')
+    .populate('rider', 'name phone email countryCode')
+    .populate('driver', 'name phone email vehicle profilePhotoUrl currentLocation avgRating totalRatings countryCode')
     .populate('category', 'name vehicleType seatCapacity')
     .populate('paymentMethod');
 
