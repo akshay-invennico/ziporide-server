@@ -1,5 +1,7 @@
 const express = require('express');
 const { auth } = require('../../middlewares/auth');
+const validate = require('../../middlewares/validate');
+const subscriptionValidation = require('../../validations/subscription.validation');
 const subscriptionController = require('../../controllers/subscription.controller');
 
 const router = express.Router();
@@ -8,7 +10,7 @@ router.post('/webhook', subscriptionController.handleWebhook);
 router.get('/plan', auth(), subscriptionController.getSubscriptionPlan);
 router.post('/checkout', auth(), subscriptionController.createCheckoutSession);
 router.get('/status', auth(), subscriptionController.getSubscriptionStatus);
-router.post('/cancel', auth(), subscriptionController.cancelSubscription);
+router.post('/cancel', auth(), validate(subscriptionValidation.cancelSubscription), subscriptionController.cancelSubscription);
 router.post('/portal', auth(), subscriptionController.createPortalSession);
 router.get('/transactions', auth(), subscriptionController.getTransactionHistory);
 router.get('/payment/method', auth(), subscriptionController.getPaymentMethod);

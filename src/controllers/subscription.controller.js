@@ -59,7 +59,8 @@ const getSubscriptionStatus = catchAsync(async (req, res) => {
  * Cancel the driver's subscription at the end of the current billing period.
  */
 const cancelSubscription = catchAsync(async (req, res) => {
-  const data = await subscriptionService.cancelSubscription(req.user.id);
+  const { reason, reasonOther } = req.body;
+  const data = await subscriptionService.cancelSubscription(req.user.id, { reason, reasonOther });
   res.status(httpStatus.OK).send({
     success: true,
     message: data.message,

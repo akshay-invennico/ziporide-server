@@ -1,9 +1,14 @@
+const Joi = require('joi');
+
 const createCheckoutSession = {
   // No body parameters needed – driver is identified from JWT
 };
 
 const cancelSubscription = {
-  // No body parameters needed
+  body: Joi.object().keys({
+    reason: Joi.string().required(),
+    reasonOther: Joi.string().optional(),
+  }),
 };
 
 const createPortalSession = {

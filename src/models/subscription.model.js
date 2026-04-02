@@ -67,6 +67,16 @@ const subscriptionSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    cancelReason: {
+      type: String
+    },
+
+    cancelReasonOther: {
+      type: String,
+      maxlength: 250,
+      trim: true,
+    },
   },
   {
     timestamps: true,

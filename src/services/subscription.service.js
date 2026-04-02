@@ -273,7 +273,7 @@ const getSubscriptionStatus = async (driverId) => {
  * @param {string} driverId
  * @returns {Promise<object>}
  */
-const cancelSubscription = async (driverId) => {
+const cancelSubscription = async (driverId, { reason, reasonOther } = {}) => {
   const subscriptionDoc = await Subscription.findOne({ driver: driverId, status: 'active' });
   if (!subscriptionDoc) {
     throw new ApiError(httpStatus.NOT_FOUND, 'No active subscription found');
@@ -282,6 +282,8 @@ const cancelSubscription = async (driverId) => {
   const stripeSubscription = await stripeService.cancelSubscription(subscriptionDoc.stripeSubscriptionId);
 
   subscriptionDoc.cancelAtPeriodEnd = true;
+  if (reason) subscriptionDoc.cancelReason = reason;
+  if (reasonOther) subscriptionDoc.cancelReasonOther = reasonOther;
   await subscriptionDoc.save();
 
   return {
