@@ -173,6 +173,26 @@ const refreshAuth = async (refreshToken) => {
   }
 };
 
+const editProfile = async (driverId, profileData) => {
+  const driver = await Driver.findById(driverId);
+  if (!driver) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
+  }
+
+  const { name, dateOfBirth, gender, address, profilePhotoUrl } = profileData;
+
+  if (name !== undefined) driver.name = name;
+  if (dateOfBirth !== undefined) driver.dateOfBirth = dateOfBirth;
+  if (gender !== undefined) driver.gender = gender;
+  if (profilePhotoUrl !== undefined) driver.profilePhotoUrl = profilePhotoUrl;
+  if (address !== undefined) {
+    driver.address = { ...driver.address?.toObject?.(), ...address };
+  }
+
+  await driver.save();
+  return driver;
+};
+
 const getAllDrivers = async (options) => {
   const {
     page = 1,
@@ -549,6 +569,7 @@ module.exports = {
   completeOnboarding,
   logout,
   refreshAuth,
+  editProfile,
   getAllDrivers,
   getDriverById,
   verifyDocument,

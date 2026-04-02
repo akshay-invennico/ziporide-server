@@ -80,6 +80,15 @@ const logout = catchAsync(async (req, res) => {
   });
 });
 
+const editProfile = catchAsync(async (req, res) => {
+  const driver = await driverService.editProfile(req.user.id, req.body);
+  res.status(httpStatus.OK).send({
+    success: true,
+    message: 'Profile updated successfully',
+    data: { driver },
+  });
+});
+
 const getAllDrivers = catchAsync(async (req, res) => {
   const drivers = await driverService.getAllDrivers(req.query);
   res.status(httpStatus.OK).send({
@@ -162,6 +171,7 @@ module.exports = {
   completeOnboarding,
   refreshTokens,
   logout,
+  editProfile,
   getAllDrivers,
   getDriverById,
   verifyDocument,

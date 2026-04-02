@@ -14,6 +14,7 @@ router.post('/verify/otp', validate(driverValidation.verifyOtp), driverControlle
 router.patch('/onboarding/profile', auth(), validate(driverValidation.updateProfile), driverController.updateProfile);
 router.patch('/onboarding/licence', auth(), validate(driverValidation.updateLicence), driverController.updateLicence);
 router.patch('/onboarding/vehicle', auth(), validate(driverValidation.updateVehicle), driverController.updateVehicle);
+router.patch('/profile', auth(), validate(driverValidation.editProfile), driverController.editProfile);
 router.post('/refresh/tokens', validate(driverValidation.refreshTokens), driverController.refreshTokens);
 router.post('/logout', validate(driverValidation.logout), driverController.logout);
 router.get('/', auth(), validate(driverValidation.getAllDrivers), driverController.getAllDrivers);

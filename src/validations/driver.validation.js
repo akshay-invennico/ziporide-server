@@ -127,6 +127,22 @@ const updateDriverStatus = {
   }),
 };
 
+const editProfile = {
+  body: Joi.object().keys({
+    name: Joi.string().trim().required(),
+    dateOfBirth: Joi.date().iso().optional(),
+    gender: Joi.string().valid('male', 'female', 'prefer_not_to_say').optional(),
+    address: Joi.object()
+      .keys({
+        line1: Joi.string().optional(),
+        postcode: Joi.string().optional(),
+        country: Joi.string().default('GB').optional(),
+      })
+      .optional(),
+    profilePhotoUrl: Joi.string().optional(),
+  }),
+};
+
 const updateDriversStatus = {
   body: Joi.object().keys({
     driverIds: Joi.array().items(Joi.string().custom(objectId)).min(1).required().messages({
@@ -161,4 +177,5 @@ module.exports = {
   verifyDocument,
   updateDriverStatus,
   updateDriversStatus,
+  editProfile,
 };
