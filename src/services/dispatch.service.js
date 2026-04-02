@@ -109,10 +109,16 @@ const findNearbyDrivers = async (pickup, vehicleType) => {
 /**
  * Build the payload sent to the driver's app.
  * Fetches a fresh, populated ride so the driver sees all the details
- * including the rider's rating and total trips.
+ * including the rider's profile image, rating, and total completed trips.
  */
 const buildRidePayload = async (rideId) => {
-  return Ride.findById(rideId).populate('rider', 'name phone profile avgRating totalRatings').lean();
+  const ride = await Ride.findById(rideId).populate('rider', 'name phone profile avgRating totalRatings').lean();
+  if (!ride) return null;
+
+  const riderTotalTrips = await Ride.countDocuments({ rider: ride.rider._id, status: 'completed' });
+  ride.riderTotalTrips = riderTotalTrips;
+
+  return ride;
 };
 
 /**
