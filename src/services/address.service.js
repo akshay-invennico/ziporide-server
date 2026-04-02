@@ -22,13 +22,10 @@ const createAddress = async (userId, body) => {
     throw new ApiError(httpStatus.BAD_REQUEST, `You can save a maximum of ${MAX_ADDRESSES_PER_USER} addresses`);
   }
 
-  // For 'home' and 'work' labels, enforce uniqueness — replace if exists
   if (body.label === 'home' || body.label === 'work') {
     const existing = await SavedAddress.findOne({ user: userId, label: body.label });
     if (existing) {
-      Object.assign(existing, body);
-      await existing.save();
-      return existing;
+      throw new ApiError(httpStatus.BAD_REQUEST, `A '${body.label}' address already exists`);
     }
   }
 
