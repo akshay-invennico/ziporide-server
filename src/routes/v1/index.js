@@ -24,6 +24,7 @@ const driverEarningsRoute = require('./driverEarnings.route');
 const driverDashboardRoute = require('./driverDashboard.route');
 const addressRoute = require('./address.route');
 const notificationRoute = require('./notification.route');
+const driverPaymentRoute = require('./driverPayment.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -116,6 +117,10 @@ const defaultRoutes = [
   {
     path: '/operators',
     route: operatorRoute,
+  },
+  {
+    path: '/driver/payment',
+    route: driverPaymentRoute,
   },
   {
     path: '/rider/address',

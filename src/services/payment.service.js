@@ -33,6 +33,30 @@ const getOrCreateStripeCustomer = async (riderId) => {
   return customer.id;
 };
 
+/**
+ * Get or create a Stripe customer for a driver.
+ * @param {string} driverId
+ * @returns {Promise<string>} Stripe customer ID
+ */
+const getOrCreateDriverStripeCustomer = async (driverId) => {
+  const driver = await Driver.findById(driverId);
+  if (!driver) throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
+
+  if (driver.stripeCustomerId) return driver.stripeCustomerId;
+
+  const customer = await stripeService.createCustomer({
+    phone: driver.phone,
+    email: driver.email,
+    name: driver.name,
+    driverId,
+  });
+
+  driver.stripeCustomerId = customer.id;
+  await driver.save();
+
+  return customer.id;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Payment method CRUD
 // ─────────────────────────────────────────────────────────────────────────────
@@ -43,6 +67,20 @@ const getOrCreateStripeCustomer = async (riderId) => {
  */
 const createSetupIntent = async (riderId) => {
   const stripeCustomerId = await getOrCreateStripeCustomer(riderId);
+  const setupIntent = await stripeService.createSetupIntent(stripeCustomerId);
+
+  return {
+    clientSecret: setupIntent.client_secret,
+    setupIntentId: setupIntent.id,
+    stripeCustomerId,
+  };
+};
+
+/**
+ * Create a SetupIntent for a driver to add a new card.
+ */
+const createDriverSetupIntent = async (driverId) => {
+  const stripeCustomerId = await getOrCreateDriverStripeCustomer(driverId);
   const setupIntent = await stripeService.createSetupIntent(stripeCustomerId);
 
   return {
@@ -94,6 +132,7 @@ const addPaymentMethod = async (riderId, stripePaymentMethodId) => {
 
   const paymentMethod = await PaymentMethod.create({
     rider: riderId,
+    ownerType: 'rider',
     type: 'card',
     card: {
       last4: stripePm.card.last4,
@@ -133,12 +172,13 @@ const removePaymentMethod = async (riderId, paymentMethodId) => {
     }
   }
 
+  const wasDefault = pm.isDefault;
   pm.isRemoved = true;
   pm.isDefault = false;
   await pm.save();
 
   // If this was the default, promote another card
-  if (pm.isDefault) {
+  if (wasDefault) {
     const nextDefault = await PaymentMethod.findOne({ rider: riderId, isRemoved: false });
     if (nextDefault) {
       nextDefault.isDefault = true;
@@ -158,6 +198,116 @@ const setDefaultPaymentMethod = async (riderId, paymentMethodId) => {
 
   // Unset current default
   await PaymentMethod.updateMany({ rider: riderId, isRemoved: false }, { isDefault: false });
+
+  pm.isDefault = true;
+  await pm.save();
+
+  return pm;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Driver payment method CRUD
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Save a payment method for a driver after the mobile app confirms the SetupIntent.
+ */
+const addDriverPaymentMethod = async (driverId, stripePaymentMethodId) => {
+  const stripeCustomerId = await getOrCreateDriverStripeCustomer(driverId);
+
+  const stripePm = await stripeService.retrievePaymentMethod(stripePaymentMethodId);
+
+  if (!stripePm.customer || stripePm.customer !== stripeCustomerId) {
+    await stripeService.attachPaymentMethod(stripePaymentMethodId, stripeCustomerId);
+  }
+
+  const existing = await PaymentMethod.findOne({
+    driver: driverId,
+    ownerType: 'driver',
+    isRemoved: false,
+    'card.last4': stripePm.card.last4,
+    'card.brand': stripePm.card.brand,
+    'card.expiryMonth': stripePm.card.exp_month,
+    'card.expiryYear': stripePm.card.exp_year,
+  });
+
+  if (existing) {
+    existing.gatewayPaymentMethodId = stripePaymentMethodId;
+    existing.gatewayCustomerId = stripeCustomerId;
+    await existing.save();
+    return existing;
+  }
+
+  const existingCount = await PaymentMethod.countDocuments({ driver: driverId, ownerType: 'driver', isRemoved: false });
+
+  const paymentMethod = await PaymentMethod.create({
+    driver: driverId,
+    ownerType: 'driver',
+    type: 'card',
+    card: {
+      last4: stripePm.card.last4,
+      brand: stripePm.card.brand,
+      expiryMonth: stripePm.card.exp_month,
+      expiryYear: stripePm.card.exp_year,
+      holderName: stripePm.billing_details?.name || undefined,
+    },
+    gatewayCustomerId: stripeCustomerId,
+    gatewayPaymentMethodId: stripePaymentMethodId,
+    isDefault: existingCount === 0,
+  });
+
+  return paymentMethod;
+};
+
+/**
+ * List all active payment methods for a driver.
+ */
+const listDriverPaymentMethods = async (driverId) => {
+  return PaymentMethod.find({ driver: driverId, ownerType: 'driver', isRemoved: false }).sort({
+    isDefault: -1,
+    createdAt: -1,
+  });
+};
+
+/**
+ * Remove a driver's payment method (soft-delete + detach from Stripe).
+ */
+const removeDriverPaymentMethod = async (driverId, paymentMethodId) => {
+  const pm = await PaymentMethod.findOne({ _id: paymentMethodId, driver: driverId, ownerType: 'driver', isRemoved: false });
+  if (!pm) throw new ApiError(httpStatus.NOT_FOUND, 'Payment method not found');
+
+  if (pm.gatewayPaymentMethodId) {
+    try {
+      await stripeService.detachPaymentMethod(pm.gatewayPaymentMethodId);
+    } catch (err) {
+      logger.error('Failed to detach payment method from Stripe:', err.message);
+    }
+  }
+
+  const wasDefault = pm.isDefault;
+  pm.isRemoved = true;
+  pm.isDefault = false;
+  await pm.save();
+
+  if (wasDefault) {
+    const nextDefault = await PaymentMethod.findOne({ driver: driverId, ownerType: 'driver', isRemoved: false });
+    if (nextDefault) {
+      nextDefault.isDefault = true;
+      await nextDefault.save();
+    }
+  }
+
+  return pm;
+};
+
+/**
+ * Set a driver's payment method as the default.
+ */
+const setDriverDefaultPaymentMethod = async (driverId, paymentMethodId) => {
+  const pm = await PaymentMethod.findOne({ _id: paymentMethodId, driver: driverId, ownerType: 'driver', isRemoved: false });
+  if (!pm) throw new ApiError(httpStatus.NOT_FOUND, 'Payment method not found');
+
+  await PaymentMethod.updateMany({ driver: driverId, ownerType: 'driver', isRemoved: false }, { isDefault: false });
 
   pm.isDefault = true;
   await pm.save();
@@ -502,12 +652,19 @@ const chargeTip = async ({ rideId, riderId, tipAmount }) => {
 module.exports = {
   // Stripe customer
   getOrCreateStripeCustomer,
-  // Payment methods
+  getOrCreateDriverStripeCustomer,
+  // Rider payment methods
   createSetupIntent,
   addPaymentMethod,
   listPaymentMethods,
   removePaymentMethod,
   setDefaultPaymentMethod,
+  // Driver payment methods
+  createDriverSetupIntent,
+  addDriverPaymentMethod,
+  listDriverPaymentMethods,
+  removeDriverPaymentMethod,
+  setDriverDefaultPaymentMethod,
   // Ride payments
   authorizeRidePayment,
   captureRidePayment,

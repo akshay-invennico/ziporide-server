@@ -3,7 +3,7 @@ const { toJSON, paginate } = require('./plugins');
 
 /**
  * PaymentMethod model
- * Stores a rider's saved payment methods (cards + Apple Pay).
+ * Stores saved payment methods for riders and drivers.
  * Card tokenisation is handled by the payment gateway (e.g. Stripe).
  * We never store raw card numbers.
  */
@@ -12,8 +12,20 @@ const paymentMethodSchema = new mongoose.Schema(
     rider: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
       index: true,
+    },
+
+    driver: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Driver',
+      index: true,
+    },
+
+    ownerType: {
+      type: String,
+      enum: ['rider', 'driver'],
+      required: true,
+      default: 'rider',
     },
 
     /**
