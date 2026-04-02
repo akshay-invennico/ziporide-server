@@ -795,7 +795,7 @@ const getRideByIdForAdmin = async (rideId) => {
   const ride = await Ride.findById(rideId)
     .populate('rider', 'name phone email countryCode avgRating totalRatings')
     .populate('driver', 'name phone email vehicle profilePhotoUrl currentLocation avgRating totalRatings countryCode')
-    .populate('category', 'name vehicleType seatCapacity')
+    .populate('category', 'name vehicleType seatCapacity categoryIcon')
     .populate('paymentMethod')
     .populate('rating', 'stars behaviourTags feedback tipAmount createdAt ratedBy')
     .populate('driverRating', 'stars behaviourTags feedback createdAt ratedBy');
