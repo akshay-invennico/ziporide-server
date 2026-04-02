@@ -152,10 +152,10 @@ const getDriverTrips = async (driverId, filter = {}, options = {}) => {
     },
     rider: ride.rider
       ? {
-          id: ride.rider._id,
-          name: ride.rider.name,
-          profile: ride.rider.profile || null,
-        }
+        id: ride.rider._id,
+        name: ride.rider.name,
+        profile: ride.rider.profile || null,
+      }
       : null,
     ratingStars: ride.rating?.stars || null,
     createdAt: ride.createdAt,
@@ -197,12 +197,14 @@ const getDriverTripDetails = async (driverId, rideId) => {
   // Build rider details
   let riderDetails = null;
   if (ride.rider) {
+    const riderTotalTrips = await Ride.countDocuments({ rider: ride.rider._id, status: 'completed' });
     riderDetails = {
       id: ride.rider._id,
       name: ride.rider.name,
-      profile: ride.rider.profile,
+      profile: ride.rider.profile || null,
       avgRating: ride.rider.avgRating,
       totalRatings: ride.rider.totalRatings,
+      totalTrips: riderTotalTrips,
     };
   }
 
@@ -240,10 +242,10 @@ const getDriverTripDetails = async (driverId, rideId) => {
     vehicleType: ride.vehicleType,
     category: ride.category
       ? {
-          name: ride.category.name,
-          vehicleType: ride.category.vehicleType,
-          categoryIcon: ride.category.categoryIcon,
-        }
+        name: ride.category.name,
+        vehicleType: ride.category.vehicleType,
+        categoryIcon: ride.category.categoryIcon,
+      }
       : null,
     pickup: ride.pickup,
     stops: ride.stops,
