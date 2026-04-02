@@ -6,6 +6,7 @@ const ApiError = require('../utils/ApiError');
 const dispatchService = require('./dispatch.service');
 const mapboxService = require('./mapbox.service');
 const paymentService = require('./payment.service');
+const driverNotificationService = require('./driverNotification.service');
 const logger = require('../config/logger');
 
 const NEARBY_DRIVERS_RADIUS_METERS = 10000; // 10 km
@@ -195,6 +196,11 @@ const cancelRide = async (rideId, riderId, cancellationData) => {
   };
   ride.rideTimestamps.cancelledAt = new Date();
   await ride.save();
+
+  // driver notifications
+  if (ride.driver) {
+    driverNotificationService.notifyRiderCancelled(ride.driver, ride);
+  }
 
   // Release the payment hold (if any)
   if (ride.stripePaymentIntentId) {
@@ -497,6 +503,12 @@ const completeRide = async (rideId, driverId) => {
   ride.status = 'completed';
   ride.rideTimestamps.completedAt = new Date();
   await ride.save();
+
+  // driver notifications
+  const driverDoc = await Driver.findById(driverId).select('fcmToken').lean();
+  if (driverDoc) {
+    driverNotificationService.notifyTripCompleted(driverDoc, ride);
+  }
 
   // Capture the actual fare
   if (ride.stripePaymentIntentId) {

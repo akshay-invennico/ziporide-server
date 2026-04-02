@@ -26,3 +26,4 @@ module.exports.driverEarningsService = require('./driverEarnings.service');
 module.exports.driverDashboardService = require('./driverDashboard.service');
 module.exports.savedAddressService = require('./address.service');
 module.exports.notificationService = require('./notification.service');
+module.exports.driverNotificationService = require('./driverNotification.service');

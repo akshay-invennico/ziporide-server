@@ -5,6 +5,7 @@ const Driver = require('../models/driver.model');
 const { User } = require('../models');
 const ApiError = require('../utils/ApiError');
 const paymentService = require('./payment.service');
+const driverNotificationService = require('./driverNotification.service');
 const logger = require('../config/logger');
 
 /**
@@ -94,6 +95,9 @@ const submitRating = async (riderId, rideId, body) => {
 
   // Keep driver stats up to date
   await _refreshDriverStats(ride.driver);
+
+  // driver notifications
+  driverNotificationService.notifyNewRating(ride.driver, rating);
 
   return { rating, tipPayment };
 };

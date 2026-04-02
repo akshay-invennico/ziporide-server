@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const httpStatus = require('http-status');
 const { SupportTicket, Driver, Ride } = require('../models');
 const ApiError = require('../utils/ApiError');
+const driverNotificationService = require('./driverNotification.service');
 
 const isOperatorUser = (requestUser) =>
   !!(requestUser && typeof requestUser.isOperator === 'function' && requestUser.isOperator());
@@ -23,31 +24,31 @@ const formatSupportTicket = (ticket) => ({
   createdAt: ticket.createdAt,
   ride: ticket.ride
     ? {
-        id: ticket.ride.id,
-        rideNumber: ticket.ride.rideNumber,
-        status: ticket.ride.status,
-        paymentStatus: ticket.ride.paymentStatus,
-      }
+      id: ticket.ride.id,
+      rideNumber: ticket.ride.rideNumber,
+      status: ticket.ride.status,
+      paymentStatus: ticket.ride.paymentStatus,
+    }
     : null,
   rider: ticket.ride?.rider
     ? {
-        id: ticket.ride.rider.id,
-        name: ticket.ride.rider.name || null,
-        email: ticket.ride.rider.email || null,
-        phone: ticket.ride.rider.phone || null,
-        countryCode: ticket.ride.rider.countryCode || null,
-        profile: ticket.ride.rider.profile || null,
-      }
+      id: ticket.ride.rider.id,
+      name: ticket.ride.rider.name || null,
+      email: ticket.ride.rider.email || null,
+      phone: ticket.ride.rider.phone || null,
+      countryCode: ticket.ride.rider.countryCode || null,
+      profile: ticket.ride.rider.profile || null,
+    }
     : null,
   driver: ticket.driver
     ? {
-        id: ticket.driver.id,
-        name: ticket.driver.name || null,
-        email: ticket.driver.email || null,
-        phone: ticket.driver.phone || null,
-        profile: ticket.driver.profilePhotoUrl || null,
-        countryCode: ticket.driver.countryCode || null,
-      }
+      id: ticket.driver.id,
+      name: ticket.driver.name || null,
+      email: ticket.driver.email || null,
+      phone: ticket.driver.phone || null,
+      profile: ticket.driver.profilePhotoUrl || null,
+      countryCode: ticket.driver.countryCode || null,
+    }
     : null,
 });
 
@@ -177,6 +178,10 @@ const updateSupportTicket = async (ticketId, requestUser, updateBody) => {
   ticket.status = updateBody.status;
 
   await ticket.save();
+
+  // driver notifications
+  driverNotificationService.notifySupportTicketUpdate(ticket);
+
   const populatedTicket = await SupportTicket.findById(ticket._id);
   await populateSupportTicketRelations(populatedTicket);
 

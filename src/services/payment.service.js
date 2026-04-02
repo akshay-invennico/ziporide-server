@@ -3,11 +3,8 @@ const { User, Payment, Ride, Driver } = require('../models');
 const PaymentMethod = require('../models/paymentMethod.model');
 const ApiError = require('../utils/ApiError');
 const stripeService = require('./stripe.service');
+const driverNotificationService = require('./driverNotification.service');
 const logger = require('../config/logger');
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Stripe customer management
-// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Get or create a Stripe customer for a rider.
@@ -57,9 +54,6 @@ const getOrCreateDriverStripeCustomer = async (driverId) => {
   return customer.id;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Payment method CRUD
-// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Create a SetupIntent for adding a new card.
@@ -205,10 +199,6 @@ const setDefaultPaymentMethod = async (riderId, paymentMethodId) => {
   return pm;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Driver payment method CRUD
-// ─────────────────────────────────────────────────────────────────────────────
-
 /**
  * Save a payment method for a driver after the mobile app confirms the SetupIntent.
  */
@@ -315,10 +305,6 @@ const setDriverDefaultPaymentMethod = async (driverId, paymentMethodId) => {
   return pm;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Ride payment – Authorize, Capture, Release, Refund
-// ─────────────────────────────────────────────────────────────────────────────
-
 /**
  * Convert pounds to pence for Stripe (which expects amounts in smallest currency unit).
  */
@@ -370,15 +356,6 @@ const authorizeRidePayment = async ({ rideId, riderId, paymentMethodId, estimate
 };
 
 /**
- * Capture the ride payment after completion, then transfer the full amount
- * to the driver's Stripe connected account.
- *
- * Flow (Separate charges and transfers):
- *  1. Capture the authorized PaymentIntent
- *  2. Create a Transfer with source_transaction to driver's connected account
- *     → Driver receives 100% of fare (platform absorbs Stripe processing fees)
- *     → Platform earns through driver subscriptions, not ride commissions
- *
  * @param {string} rideId
  * @param {number} [actualFare] – In pounds. If omitted, captures full authorized amount.
  * @returns {Promise<Payment>}
@@ -401,9 +378,6 @@ const captureRidePayment = async (rideId, actualFare) => {
   const capturedPence = paymentIntent.amount_received;
   const capturedPounds = capturedPence / 100;
 
-  // ── Transfer to driver's connected account ─────────────────────────────
-  // Uses source_transaction so the full charge amount can be transferred
-  // even though Stripe fees are deducted from the platform balance.
   let transfer = null;
   if (ride.driver) {
     const driver = await Driver.findById(ride.driver);
@@ -457,6 +431,14 @@ const captureRidePayment = async (rideId, actualFare) => {
   ride.paymentStatus = 'paid';
   ride.fare.totalFare = capturedPounds;
   await ride.save();
+
+  // notifications
+  if (ride.driver) {
+    const driverDoc = await Driver.findById(ride.driver).select('fcmToken').lean();
+    if (driverDoc) {
+      driverNotificationService.notifyPaymentReceived(driverDoc, ride, payment);
+    }
+  }
 
   return payment;
 };

@@ -12,3 +12,4 @@ module.exports.SupportTicket = require('./supportTicket.model');
 module.exports.Operator = require('./operator.model');
 module.exports.SavedAddress = require('./address.model');
 module.exports.Notification = require('./notification.model');
+module.exports.DriverNotification = require('./driverNotification.model');

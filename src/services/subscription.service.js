@@ -2,6 +2,7 @@ const httpStatus = require('http-status');
 const { Driver, Subscription } = require('../models');
 const ApiError = require('../utils/ApiError');
 const stripeService = require('./stripe.service');
+const driverNotificationService = require('./driverNotification.service');
 const config = require('../config/config');
 
 /**
@@ -173,6 +174,7 @@ const _handleCheckoutSessionCompleted = async (session) => {
       isSubscribed: true,
       subscriptionStatus: 'active',
     });
+    driverNotificationService.notifySubscriptionRenewalSuccess(driverId);
   }
 };
 
@@ -201,6 +203,10 @@ const _handleSubscriptionUpdated = async (stripeSubscription) => {
     isSubscribed: isActive,
     subscriptionStatus: stripeSubscription.status,
   });
+
+  if (isActive) {
+    driverNotificationService.notifySubscriptionRenewalSuccess(subscriptionDoc.driver);
+  }
 };
 
 /** @private */
@@ -238,6 +244,8 @@ const _handlePaymentFailed = async (invoice) => {
     isSubscribed: false,
     subscriptionStatus: 'past_due',
   });
+
+  driverNotificationService.notifySubscriptionPaymentFailed(subscriptionDoc.driver);
 };
 
 /**

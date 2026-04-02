@@ -25,6 +25,7 @@ const driverDashboardRoute = require('./driverDashboard.route');
 const addressRoute = require('./address.route');
 const notificationRoute = require('./notification.route');
 const driverPaymentRoute = require('./driverPayment.route');
+const driverNotificationRoute = require('./driverNotification.route');
 const config = require('../../config/config');
 
 const router = express.Router();
@@ -41,6 +42,10 @@ const defaultRoutes = [
   {
     path: '/driver/dashboard',
     route: driverDashboardRoute,
+  },
+  {
+    path: '/driver/notifications',
+    route: driverNotificationRoute,
   },
   {
     path: '/driver/trips',
