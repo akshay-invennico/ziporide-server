@@ -328,27 +328,43 @@ const getTransactionHistory = async (driverId, limit = 20) => {
 
   const invoiceList = await stripeService.listInvoices(driver.stripeCustomerId, limit);
 
-  const transactions = invoiceList.data.map((invoice) => ({
-    id: invoice.id,
-    invoiceNumber: invoice.number,
-    description: invoice.description || 'Monthly Subscription',
-    amount: invoice.amount_paid / 100, // Convert pence to pounds
-    currency: invoice.currency.toUpperCase(),
-    status: invoice.status, // 'draft' | 'open' | 'paid' | 'uncollectible' | 'void'
-    paid: invoice.paid,
-    invoiceUrl: invoice.hosted_invoice_url,
-    pdfUrl: invoice.invoice_pdf,
-    periodStart: invoice.period_start ? new Date(invoice.period_start * 1000) : null,
-    periodEnd: invoice.period_end ? new Date(invoice.period_end * 1000) : null,
-    createdAt: new Date(invoice.created * 1000),
-    paymentIntent: invoice.payment_intent
-      ? {
+  const transactions = invoiceList.data.map((invoice) => {
+    const pm = invoice.payment_intent?.payment_method;
+    let paidWith = null;
+    if (pm && typeof pm === 'object' && pm.card) {
+      paidWith = {
+        brand: pm.card.brand,
+        last4: pm.card.last4,
+        expiryMonth: pm.card.exp_month,
+        expiryYear: pm.card.exp_year,
+      };
+    }
+
+    return {
+      id: invoice.id,
+      invoiceNumber: invoice.number,
+      description: invoice.description || 'Monthly Subscription',
+      amount: invoice.amount_paid / 100, // Convert pence to pounds
+      currency: invoice.currency.toUpperCase(),
+      status: invoice.status, // 'draft' | 'open' | 'paid' | 'uncollectible' | 'void'
+      paid: invoice.paid,
+      invoiceUrl: invoice.hosted_invoice_url,
+      pdfUrl: invoice.invoice_pdf,
+      periodStart: invoice.period_start ? new Date(invoice.period_start * 1000) : null,
+      periodEnd: invoice.period_end ? new Date(invoice.period_end * 1000) : null,
+      createdAt: new Date(invoice.created * 1000),
+      paidWith,
+      paymentIntent: invoice.payment_intent
+        ? {
           id: invoice.payment_intent.id,
           status: invoice.payment_intent.status,
-          paymentMethod: invoice.payment_intent.payment_method,
+          paymentMethod: typeof invoice.payment_intent.payment_method === 'object'
+            ? invoice.payment_intent.payment_method.id
+            : invoice.payment_intent.payment_method,
         }
-      : null,
-  }));
+        : null,
+    };
+  });
 
   return { transactions };
 };

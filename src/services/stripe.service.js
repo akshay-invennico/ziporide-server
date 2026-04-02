@@ -223,9 +223,6 @@ const deleteExternalAccount = async (accountId, bankAccountId) => {
   return getStripe().accounts.deleteExternalAccount(accountId, bankAccountId);
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Invoices & Payment Methods – subscription billing history
-// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * List Stripe invoices for a customer (subscription payment history).
@@ -237,7 +234,7 @@ const listInvoices = async (stripeCustomerId, limit = 20) => {
   return getStripe().invoices.list({
     customer: stripeCustomerId,
     limit,
-    expand: ['data.payment_intent'],
+    expand: ['data.payment_intent', 'data.payment_intent.payment_method'],
   });
 };
 
