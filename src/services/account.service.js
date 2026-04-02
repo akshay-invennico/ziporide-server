@@ -51,10 +51,14 @@ const linkBankAccount = async (driverId) => {
   }
 
   // Generate a fresh onboarding link (links expire after a few minutes)
+  // Append status query params so the mobile WebView can detect success/failure
+  const returnUrl = `${config.stripe.connectReturnUrl}?status=success`;
+  const refreshUrl = `${config.stripe.connectRefreshUrl}?status=failed`;
+
   const accountLink = await stripeService.createAccountLink({
     accountId: driver.stripeAccountId,
-    returnUrl: config.stripe.connectReturnUrl,
-    refreshUrl: config.stripe.connectRefreshUrl,
+    returnUrl,
+    refreshUrl,
   });
 
   return { url: accountLink.url, isNewAccount };
