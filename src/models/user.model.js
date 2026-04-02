@@ -53,7 +53,7 @@ const userSchema = mongoose.Schema(
 
     gender: {
       type: String,
-      enum: ['male', 'female', 'prefer_not_to_say'],
+      enum: ['male', 'female', 'other'],
     },
 
     isAdultConfirmed: {
