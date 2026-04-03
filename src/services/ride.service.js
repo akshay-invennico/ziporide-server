@@ -7,6 +7,7 @@ const dispatchService = require('./dispatch.service');
 const mapboxService = require('./mapbox.service');
 const paymentService = require('./payment.service');
 const driverNotificationService = require('./driverNotification.service');
+const waitingTimerService = require('./waitingTimer.service');
 const logger = require('../config/logger');
 
 const NEARBY_DRIVERS_RADIUS_METERS = 10000; // 10 km
@@ -187,6 +188,9 @@ const cancelRide = async (rideId, riderId, cancellationData) => {
     throw new ApiError(httpStatus.BAD_REQUEST, `Ride cannot be cancelled at this stage (current status: '${ride.status}')`);
   }
 
+  // Clear auto-cancel waiting timer if active
+  waitingTimerService.clearWaitingTimer(rideId);
+
   ride.status = 'cancelled';
   ride.cancellation = {
     cancelledBy: 'rider',
@@ -284,6 +288,13 @@ const driverArrived = async (rideId, driverId) => {
   ride.rideTimestamps.driverArrivedAt = new Date();
   await ride.save();
 
+  // Start the waiting timer — auto-cancels if rider doesn't board in time
+  setImmediate(() => {
+    waitingTimerService.startWaitingTimer(ride._id.toString()).catch((err) => {
+      logger.error(`Failed to start waiting timer for ride ${rideId}: ${err.message}`);
+    });
+  });
+
   // Notify rider
   setImmediate(() => {
     try {
@@ -325,6 +336,9 @@ const verifyOtpAndStartRide = async (rideId, driverId, otp, waitingTime = 0) => 
   if (ride.pickupOtp !== otp) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid OTP. Please check and try again.');
   }
+
+  // Clear the auto-cancel waiting timer since the rider has boarded
+  waitingTimerService.clearWaitingTimer(rideId);
 
   // Calculate waiting charge if chargeable waiting time was sent
   if (waitingTime > 0) {
@@ -556,6 +570,9 @@ const cancelRideByDriver = async (rideId, driverId, cancellationData) => {
   if (!cancellableStatuses.includes(ride.status)) {
     throw new ApiError(httpStatus.BAD_REQUEST, `Ride cannot be cancelled at this stage (current status: '${ride.status}')`);
   }
+
+  // Clear auto-cancel waiting timer if active
+  waitingTimerService.clearWaitingTimer(rideId);
 
   ride.status = 'cancelled';
   ride.cancellation = {
@@ -829,6 +846,9 @@ const cancelRideByAdmin = async (rideId, cancelReason) => {
   if (ride.status === 'completed') {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Cannot cancel completed ride');
   }
+
+  // Clear auto-cancel waiting timer if active
+  waitingTimerService.clearWaitingTimer(rideId);
 
   ride.status = 'cancelled';
   ride.cancellation = {
