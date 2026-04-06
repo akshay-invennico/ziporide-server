@@ -8,7 +8,7 @@ const { subscriptionService } = require('../services');
  * Used to display the plan screen before the driver subscribes.
  */
 const getSubscriptionPlan = catchAsync(async (req, res) => {
-  const data = await subscriptionService.getSubscriptionPlan();
+  const data = await subscriptionService.getSubscriptionPlan(req.user.id);
   res.status(httpStatus.OK).send({
     success: true,
     message: 'Subscription plan retrieved',

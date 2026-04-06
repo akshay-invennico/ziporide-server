@@ -292,6 +292,7 @@ const removeDriverPaymentMethod = async (driverId, paymentMethodId) => {
 
 /**
  * Set a driver's payment method as the default.
+ * Also updates the Stripe subscription's default payment method so future renewals use the new card.
  */
 const setDriverDefaultPaymentMethod = async (driverId, paymentMethodId) => {
   const pm = await PaymentMethod.findOne({ _id: paymentMethodId, driver: driverId, ownerType: 'driver', isRemoved: false });
@@ -301,6 +302,22 @@ const setDriverDefaultPaymentMethod = async (driverId, paymentMethodId) => {
 
   pm.isDefault = true;
   await pm.save();
+
+  // Update Stripe subscription's default payment method for future renewals
+  if (pm.gatewayPaymentMethodId) {
+    try {
+      const { Subscription } = require('../models');
+      const activeSub = await Subscription.findOne({ driver: driverId, status: 'active' });
+      if (activeSub?.stripeSubscriptionId) {
+        const stripe = stripeService.getStripe();
+        await stripe.subscriptions.update(activeSub.stripeSubscriptionId, {
+          default_payment_method: pm.gatewayPaymentMethodId,
+        });
+      }
+    } catch (err) {
+      logger.error(`Failed to update Stripe subscription payment method for driver ${driverId}: ${err.message}`);
+    }
+  }
 
   return pm;
 };

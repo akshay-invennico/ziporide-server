@@ -1,26 +1,31 @@
 const httpStatus = require('http-status');
 const { Driver, Subscription } = require('../models');
+const PaymentMethod = require('../models/paymentMethod.model');
 const ApiError = require('../utils/ApiError');
 const stripeService = require('./stripe.service');
 const driverNotificationService = require('./driverNotification.service');
 const config = require('../config/config');
+const logger = require('../config/logger');
 
 /**
- * Get the subscription plan details from Stripe's product catalogue.
- * Fetches the Price (with expanded Product) configured in STRIPE_PRICE_ID.
- *
- * @returns {Promise<object>} Plan details formatted for the UI
+ * @param {string} driverId
+ * @returns {Promise<object>}
  */
-const getSubscriptionPlan = async () => {
+const getSubscriptionPlan = async (driverId) => {
   const { priceId } = config.stripe;
   if (!priceId) {
     throw new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Subscription plan is not configured');
   }
 
+  const driver = await Driver.findById(driverId);
+  if (!driver) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
+  }
+
   const price = await stripeService.retrievePrice(priceId);
   const { product } = price;
 
-  return {
+  const result = {
     plan: {
       id: price.id,
       name: product.name,
@@ -32,7 +37,53 @@ const getSubscriptionPlan = async () => {
       features: (product.marketing_features || []).map((f) => f.name),
       metadata: product.metadata || {},
     },
+    subscription: null,
+    paymentMethod: null,
   };
+
+  // Fetch the driver's latest subscription
+  const subscription = await Subscription.findOne({ driver: driverId }).sort({ createdAt: -1 }).lean();
+
+  if (subscription) {
+    const now = new Date();
+    const periodEnd = subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null;
+    const remainingDays = periodEnd ? Math.max(0, Math.ceil((periodEnd - now) / (1000 * 60 * 60 * 24))) : null;
+
+    result.subscription = {
+      id: subscription._id,
+      status: subscription.status,
+      currentPeriodStart: subscription.currentPeriodStart || null,
+      currentPeriodEnd: subscription.currentPeriodEnd || null,
+      remainingDays,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+      canceledAt: subscription.canceledAt || null,
+      amount: subscription.amount ? subscription.amount / 100 : null,
+      currency: subscription.currency || 'GBP',
+    };
+
+    // Get the default payment method from local DB
+    const defaultPm = await PaymentMethod.findOne({
+      driver: driverId,
+      ownerType: 'driver',
+      isRemoved: false,
+      isDefault: true,
+    }).lean();
+
+    if (defaultPm) {
+      result.paymentMethod = {
+        id: defaultPm._id,
+        type: defaultPm.type,
+        brand: defaultPm.card?.brand || null,
+        last4: defaultPm.card?.last4 || null,
+        expMonth: defaultPm.card?.expiryMonth || null,
+        expYear: defaultPm.card?.expiryYear || null,
+        holderName: defaultPm.card?.holderName || null,
+        gatewayPaymentMethodId: defaultPm.gatewayPaymentMethodId || null,
+      };
+    }
+  }
+
+  return result;
 };
 
 /**
@@ -175,6 +226,50 @@ const _handleCheckoutSessionCompleted = async (session) => {
       subscriptionStatus: 'active',
     });
     driverNotificationService.notifySubscriptionRenewalSuccess(driverId);
+  }
+
+  // Save the payment method used during checkout to the PaymentMethod collection
+  try {
+    const pmId = stripeSubscription.default_payment_method;
+    if (pmId) {
+      const stripePm = await stripeService.retrievePaymentMethod(typeof pmId === 'object' ? pmId.id : pmId);
+
+      if (stripePm.card) {
+        const existing = await PaymentMethod.findOne({
+          driver: driverId,
+          ownerType: 'driver',
+          isRemoved: false,
+          'card.last4': stripePm.card.last4,
+          'card.brand': stripePm.card.brand,
+          'card.expiryMonth': stripePm.card.exp_month,
+          'card.expiryYear': stripePm.card.exp_year,
+        });
+
+        if (!existing) {
+          // Unset any existing default before setting this as default
+          await PaymentMethod.updateMany({ driver: driverId, ownerType: 'driver', isRemoved: false }, { isDefault: false });
+
+          await PaymentMethod.create({
+            driver: driverId,
+            ownerType: 'driver',
+            type: 'card',
+            card: {
+              last4: stripePm.card.last4,
+              brand: stripePm.card.brand,
+              expiryMonth: stripePm.card.exp_month,
+              expiryYear: stripePm.card.exp_year,
+              holderName: stripePm.billing_details?.name || undefined,
+            },
+            gatewayCustomerId: subscriptionDoc.stripeCustomerId,
+            gatewayPaymentMethodId: typeof pmId === 'object' ? pmId.id : pmId,
+            isDefault: true,
+          });
+          logger.info(`Saved subscription payment method for driver ${driverId}`);
+        }
+      }
+    }
+  } catch (err) {
+    logger.error(`Failed to save subscription payment method for driver ${driverId}: ${err.message}`);
   }
 };
 
@@ -377,68 +472,29 @@ const getTransactionHistory = async (driverId, limit = 20) => {
  * @returns {Promise<object>}
  */
 const getPaymentMethod = async (driverId) => {
-  const driver = await Driver.findById(driverId);
-  if (!driver) {
-    throw new ApiError(httpStatus.NOT_FOUND, 'Driver not found');
-  }
-
-  if (!driver.stripeCustomerId) {
-    return { paymentMethod: null };
-  }
-
-  // Get the active subscription to find the default payment method
-  const subscription = await Subscription.findOne({
+  const defaultPm = await PaymentMethod.findOne({
     driver: driverId,
-    status: { $in: ['active', 'trialing', 'past_due'] },
-  }).sort({ createdAt: -1 });
+    ownerType: 'driver',
+    isRemoved: false,
+    isDefault: true,
+  }).lean();
 
-  if (!subscription?.stripeSubscriptionId) {
-    return { paymentMethod: null };
-  }
-
-  // Retrieve the Stripe subscription to get the payment method
-  const stripeSub = await stripeService.retrieveSubscription(subscription.stripeSubscriptionId);
-
-  const pmId = stripeSub.default_payment_method || stripeSub.latest_invoice?.payment_intent?.payment_method;
-
-  if (!pmId) {
-    // Fall back to listing all payment methods on the customer
-    const pmList = await stripeService.listPaymentMethods(driver.stripeCustomerId, 'card');
-    if (!pmList.data.length) return { paymentMethod: null };
-
-    const pm = pmList.data[0];
+  if (defaultPm) {
     return {
-      paymentMethod: _formatPaymentMethod(pm),
+      paymentMethod: {
+        id: defaultPm._id,
+        type: defaultPm.type,
+        brand: defaultPm.card?.brand || null,
+        last4: defaultPm.card?.last4 || null,
+        expMonth: defaultPm.card?.expiryMonth || null,
+        expYear: defaultPm.card?.expiryYear || null,
+        holderName: defaultPm.card?.holderName || null,
+        gatewayPaymentMethodId: defaultPm.gatewayPaymentMethodId || null,
+      },
     };
   }
 
-  const pm = await stripeService.retrievePaymentMethod(pmId);
-  return { paymentMethod: _formatPaymentMethod(pm) };
-};
-
-/** @private Format a Stripe PaymentMethod for the UI */
-const _formatPaymentMethod = (pm) => {
-  if (!pm) return null;
-
-  if (pm.type === 'card') {
-    return {
-      id: pm.id,
-      type: 'card',
-      brand: pm.card.brand, // 'visa' | 'mastercard' | 'amex' etc.
-      last4: pm.card.last4,
-      expMonth: pm.card.exp_month,
-      expYear: pm.card.exp_year,
-      funding: pm.card.funding, // 'credit' | 'debit' | 'prepaid'
-      country: pm.card.country,
-      holderName: pm.billing_details?.name || null,
-    };
-  }
-
-  // apple_pay / google_pay come through as 'card' type in Stripe's model
-  return {
-    id: pm.id,
-    type: pm.type,
-  };
+  return { paymentMethod: null };
 };
 
 module.exports = {
