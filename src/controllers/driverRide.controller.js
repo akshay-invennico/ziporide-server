@@ -199,8 +199,8 @@ const completeRide = catchAsync(async (req, res) => {
 /**
  * POST /v1/driver/rides/:rideId/cancel
  *
- * Driver cancels an assigned ride before the trip starts.
- * Allowed only when status is driver_allocated or driver_arrived.
+ * Driver cancels an assigned ride.
+ * Allowed when status is driver_allocated, driver_arrived, or in_progress.
  * Body: { reason: string, customReason?: string }
  */
 const cancelRide = catchAsync(async (req, res) => {

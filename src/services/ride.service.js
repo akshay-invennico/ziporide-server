@@ -217,11 +217,19 @@ const cancelRide = async (rideId, riderId, cancellationData) => {
     });
   }
 
-  // Kill the dispatch loop and notify the current driver immediately
+  // Kill the dispatch loop and notify the current driver immediately via socket
   setImmediate(() => {
     try {
       const { getIO } = require('../socket');
       dispatchService.cancelDispatch(getIO(), rideId);
+
+      // Notify the assigned driver via socket
+      if (ride.driver) {
+        getIO().to(`user:${ride.driver.toString()}`).emit('ride:cancelled_by_rider', {
+          rideId: ride._id,
+          message: 'The rider has cancelled the ride.',
+        });
+      }
     } catch {
       // Safe to ignore — socket may not be available in tests
     }
@@ -566,7 +574,7 @@ const cancelRideByDriver = async (rideId, driverId, cancellationData) => {
     throw new ApiError(httpStatus.FORBIDDEN, 'You are not the assigned driver for this ride');
   }
 
-  const cancellableStatuses = ['driver_allocated', 'driver_arrived'];
+  const cancellableStatuses = ['driver_allocated', 'driver_arrived', 'in_progress'];
   if (!cancellableStatuses.includes(ride.status)) {
     throw new ApiError(httpStatus.BAD_REQUEST, `Ride cannot be cancelled at this stage (current status: '${ride.status}')`);
   }

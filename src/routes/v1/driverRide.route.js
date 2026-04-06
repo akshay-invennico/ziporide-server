@@ -89,8 +89,8 @@ router.post('/:rideId/complete', validate(rideValidation.completeRide), driverRi
 
 /**
  * POST /v1/driver/rides/:rideId/cancel
- * Driver cancels an assigned ride (before trip starts).
- * Allowed in driver_allocated or driver_arrived status.
+ * Driver cancels an assigned ride.
+ * Allowed in driver_allocated, driver_arrived, or in_progress status.
  * Body: { reason: string, customReason?: string }
  */
 router.post('/:rideId/cancel', validate(rideValidation.driverCancelRide), driverRideController.cancelRide);
