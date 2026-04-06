@@ -72,6 +72,27 @@ const submitRating = async (riderId, rideId, body) => {
       tipAmount,
     });
     logger.info(`Tip of £${tipAmount} charged for ride ${rideId}`);
+
+    // notify driver via socket about the tip
+    try {
+      const { getIO } = require('../socket');
+      const rider = await User.findById(riderId).select('name profilePhotoUrl avgRating totalRatings').lean();
+
+      getIO().to(`user:${ride.driver.toString()}`).emit('ride:tip_received', {
+        rideId: ride._id,
+        tipAmount,
+        currency: tipPayment.currency || 'GBP',
+        rider: {
+          id: riderId,
+          name: rider?.name || null,
+          profilePhotoUrl: rider?.profilePhotoUrl || null,
+          avgRating: rider?.avgRating || 0,
+          totalRatings: rider?.totalRatings || 0,
+        },
+      });
+    } catch {
+      // socket may not be available in tests
+    }
   }
 
   // ── Save rating ──────────────────────────────────────────────────────
