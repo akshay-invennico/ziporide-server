@@ -1,27 +1,20 @@
 const httpStatus = require('http-status');
-const moment = require('moment');
 const mongoose = require('mongoose');
 const { Driver, Token, User, Ride, VehicleCategory } = require('../models');
 const ApiError = require('../utils/ApiError');
-const twilioService = require('./twilio.service');
+const preludeService = require('./prelude.service');
 const { tokenTypes } = require('../config/tokens');
 const tokenService = require('./token.service');
 const emailService = require('./email.service');
 
-const generateOtp = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
-
 const sendOtp = async (phone, countryCode) => {
-  const otp = generateOtp();
-  const otpExpiresAt = moment().add(10, 'minutes').toDate();
   const fullPhone = `${countryCode}${phone}`;
 
   let driver = await Driver.findOne({ phone, countryCode });
   const isNewUser = !driver;
 
   if (!driver) {
-    driver = await Driver.create({ phone, countryCode, otp, otpExpiresAt });
+    driver = await Driver.create({ phone, countryCode });
   } else {
     if (driver.isDeleted) {
       throw new ApiError(httpStatus.FORBIDDEN, 'Your account has been deleted. Please contact support.');
@@ -30,12 +23,9 @@ const sendOtp = async (phone, countryCode) => {
     if (driver.status === 'suspended' || driver.status === 'rejected') {
       throw new ApiError(httpStatus.FORBIDDEN, `Your account has been ${driver.status}. Please contact support.`);
     }
-    driver.otp = otp;
-    driver.otpExpiresAt = otpExpiresAt;
-    await driver.save();
   }
 
-  await twilioService.sendOtpSms(fullPhone, otp);
+  await preludeService.sendOtp(fullPhone);
   return { isNewUser };
 };
 
@@ -46,13 +36,13 @@ const verifyOtp = async (phone, countryCode, otp) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
 
-  if (!driver.isOtpValid(otp)) {
+  const fullPhone = `${countryCode}${phone}`;
+  const isValid = await preludeService.verifyOtp(fullPhone, otp);
+  if (!isValid) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid or expired OTP');
   }
 
   driver.isPhoneVerified = true;
-  driver.otp = undefined;
-  driver.otpExpiresAt = undefined;
   driver.lastLoginAt = new Date();
 
   if (driver.onboardingStep === 0) {

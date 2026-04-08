@@ -19,9 +19,7 @@ const envVarsSchema = Joi.object()
     EMAIL_FROM: Joi.string().description('the from field in the emails sent by the app'),
     SENDGRID_API_KEY: Joi.string().description('SendGrid API key'),
     SENDER_MAIL: Joi.string().description('SendGrid sender email'),
-    TWILIO_ACCOUNT_SID: Joi.string().description('Twilio account SID'),
-    TWILIO_AUTH_TOKEN: Joi.string().description('Twilio auth token'),
-    TWILIO_PHONE_NUMBER: Joi.string().description('Twilio phone number'),
+    PRELUDE_API_KEY: Joi.string().required().description('Prelude API key for SMS verification'),
     STRIPE_SECRET_KEY: Joi.string().description('Stripe secret API key'),
     STRIPE_WEBHOOK_SECRET: Joi.string().description('Stripe webhook signing secret'),
     STRIPE_PRICE_ID: Joi.string().description('Stripe Price ID for the driver monthly subscription'),
@@ -86,10 +84,8 @@ module.exports = {
       senderMail: envVars.SENDER_MAIL,
     },
   },
-  twilio: {
-    accountSid: envVars.TWILIO_ACCOUNT_SID,
-    authToken: envVars.TWILIO_AUTH_TOKEN,
-    phoneNumber: envVars.TWILIO_PHONE_NUMBER,
+  prelude: {
+    apiKey: envVars.PRELUDE_API_KEY,
   },
   stripe: {
     secretKey: envVars.STRIPE_SECRET_KEY,

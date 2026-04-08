@@ -5,7 +5,7 @@ const moment = require('moment');
 const { User } = require('../models');
 const Operator = require('../models/operator.model');
 const ApiError = require('../utils/ApiError');
-const twilioService = require('./twilio.service');
+const preludeService = require('./prelude.service');
 const { tokenTypes } = require('../config/tokens');
 const Token = require('../models/token.model');
 const tokenService = require('./token.service');
@@ -24,15 +24,13 @@ const generateOtp = () => {
  * @returns {Promise<{ isNewUser: boolean }>}
  */
 const sendOtp = async (phone, countryCode) => {
-  const otp = generateOtp();
-  const otpExpiresAt = moment().add(10, 'minutes').toDate();
   const fullPhone = `${countryCode}${phone}`;
 
   let user = await User.findOne({ phone, countryCode });
   const isNewUser = !user;
 
   if (!user) {
-    user = await User.create({ phone, countryCode, otp, otpExpiresAt });
+    user = await User.create({ phone, countryCode });
   } else {
     if (user.isDeleted) {
       throw new ApiError(httpStatus.FORBIDDEN, 'Your account has been deleted. Please contact support.');
@@ -45,12 +43,9 @@ const sendOtp = async (phone, countryCode) => {
     if (user.status === 'suspended') {
       throw new ApiError(httpStatus.FORBIDDEN, 'Your account has been suspended. Please contact support.');
     }
-    user.otp = otp;
-    user.otpExpiresAt = otpExpiresAt;
-    await user.save();
   }
 
-  await twilioService.sendOtpSms(fullPhone, otp);
+  await preludeService.sendOtp(fullPhone);
   return { isNewUser };
 };
 
@@ -67,13 +62,13 @@ const verifyOtp = async (phone, countryCode, otp) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
 
-  if (!user.isOtpValid(otp)) {
+  const fullPhone = `${countryCode}${phone}`;
+  const isValid = await preludeService.verifyOtp(fullPhone, otp);
+  if (!isValid) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid or expired OTP');
   }
 
   user.isPhoneVerified = true;
-  user.otp = undefined;
-  user.otpExpiresAt = undefined;
   user.lastLoginAt = new Date();
   await user.save();
 
